@@ -87,6 +87,16 @@
           Next
         </button>
       </div>
+      <!-- Export Controls -->
+      <div id="exportControls" class="mt-2 flex justify-end items-center gap-2">
+        <select id="exportFormat" class="border border-blue-300 rounded p-1">
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+        </select>
+        <button id="downloadBtn" class="px-4 py-2 bg-green-500 text-white rounded disabled:opacity-50" disabled>
+          Download
+        </button>
+      </div>
       <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
     </div>
   </div>
@@ -111,6 +121,8 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const exportFormatSelect = document.getElementById('exportFormat');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -277,9 +289,10 @@
       const totalPages = Math.ceil(currentResults.length / resultsPerPage);
       resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? "" : "s"}.`;
       pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-      
+
       prevBtn.disabled = currentPage <= 1;
       nextBtn.disabled = currentPage >= totalPages;
+      downloadBtn.disabled = currentResults.length === 0;
     }
 
     // Pagination controls
@@ -295,6 +308,32 @@
         currentPage++;
         displayResults();
       }
+    });
+
+      // Export current results as CSV or JSON
+    downloadBtn.addEventListener('click', () => {
+      const format = exportFormatSelect.value;
+      let dataStr = '';
+      let mime = '';
+      let ext = '';
+      if (format === 'csv') {
+        dataStr = d3.csvFormat(currentResults);
+        mime = 'text/csv';
+        ext = 'csv';
+      } else {
+        dataStr = JSON.stringify(currentResults, null, 2);
+        mime = 'application/json';
+        ext = 'json';
+      }
+      const blob = new Blob([dataStr], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `results.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
     });
     
     // Handle search input (debounced)
