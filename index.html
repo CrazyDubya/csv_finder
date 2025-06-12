@@ -6,6 +6,11 @@
   <title>Dynamic CSV Viewer</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (localStorage.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <!-- d3-dsv for CSV parsing -->
   <script src="https://d3js.org/d3-dsv.v2.min.js"></script>
   <!-- Fuse.js for fuzzy search -->
@@ -30,7 +35,8 @@
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100">
+  <button id="themeToggle" class="fixed top-4 right-4 bg-blue-500 dark:bg-blue-700 text-white px-4 py-2 rounded">Dark Mode</button>
   <div class="container mx-auto px-4 py-10">
     <!-- Header -->
     <div class="text-center mb-10">
@@ -41,9 +47,9 @@
     </div>
 
     <!-- File Upload Area -->
-    <div id="dragArea" class="drag-area bg-white rounded-xl p-10 mb-10 shadow-lg cursor-pointer transition-colors text-center">
+    <div id="dragArea" class="drag-area bg-white dark:bg-gray-800 rounded-xl p-10 mb-10 shadow-lg cursor-pointer transition-colors text-center">
       <input type="file" id="fileInput" accept=".csv" class="hidden" />
-      <div class="flex flex-col items-center text-blue-600">
+      <div class="flex flex-col items-center text-blue-600 dark:text-blue-300">
         <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -56,38 +62,38 @@
 
     <!-- Filter Controls -->
     <div id="filterContainer" class="mb-6 hidden">
-      <h2 class="text-xl font-semibold text-blue-800 mb-2">Filters</h2>
+      <h2 class="text-xl font-semibold text-blue-800 dark:text-blue-300 mb-2">Filters</h2>
       <div id="filters" class="flex flex-wrap gap-4">
         <!-- Filter dropdowns will be created dynamically -->
       </div>
     </div>
 
     <!-- Search Bar -->
-    <div class="bg-white rounded-full shadow-lg mb-6 px-6 py-4 flex items-center">
-      <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-white dark:bg-gray-800 rounded-full shadow-lg mb-6 px-6 py-4 flex items-center">
+      <svg class="w-6 h-6 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
       </svg>
       <input type="text" id="searchInput"
-             class="w-full focus:outline-none text-lg text-blue-900 placeholder-blue-400"
+             class="w-full focus:outline-none text-lg text-blue-900 dark:text-blue-200 placeholder-blue-400 dark:placeholder-blue-500"
              placeholder="Search records..." disabled />
     </div>
 
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
-      <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
+      <h2 class="text-2xl font-bold mb-4 text-blue-800 dark:text-blue-300">Search Results</h2>
       <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       <!-- Pagination Controls -->
       <div id="pagination" class="mt-4 flex justify-between items-center">
         <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
           Previous
         </button>
-        <span id="pageInfo" class="text-blue-700"></span>
+        <span id="pageInfo" class="text-blue-700 dark:text-blue-300"></span>
         <button id="nextBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
           Next
         </button>
       </div>
-      <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
+      <div id="resultCount" class="mt-4 text-right text-sm text-blue-700 dark:text-blue-300"></div>
     </div>
   </div>
 
@@ -219,7 +225,7 @@
           wrapper.className = "flex flex-col";
           const label = document.createElement('label');
           label.htmlFor = select.id;
-          label.className = "text-blue-800 text-sm font-medium";
+          label.className = "text-blue-800 dark:text-blue-300 text-sm font-medium";
           label.textContent = field;
           wrapper.appendChild(label);
           wrapper.appendChild(select);
@@ -259,7 +265,7 @@
       
       pageResults.forEach(record => {
         const card = document.createElement('div');
-        card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
+        card.className = "bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 border border-blue-200 dark:border-gray-600";
         const list = document.createElement('ul');
         list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
@@ -267,7 +273,7 @@
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+          item.innerHTML = `<span class="font-semibold text-red-600 dark:text-red-400">${col}:</span> ${value}`;
           list.appendChild(item);
         });
         card.appendChild(list);
@@ -299,6 +305,19 @@
     
     // Handle search input (debounced)
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
+  </script>
+  <script>
+    const themeToggle = document.getElementById('themeToggle');
+    function updateToggle() {
+      const isDark = document.documentElement.classList.contains('dark');
+      themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+    themeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      updateToggle();
+    });
+    updateToggle();
   </script>
 </body>
 </html>
