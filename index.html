@@ -51,12 +51,19 @@
         <p id="fileStatus" class="text-lg">
           Drag &amp; drop your CSV file here or click to select a file
         </p>
+        <div id="spinner" class="hidden mt-4 flex justify-center">
+          <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+        </div>
       </div>
     </div>
 
     <!-- Filter Controls -->
     <div id="filterContainer" class="mb-6 hidden">
-      <h2 class="text-xl font-semibold text-blue-800 mb-2">Filters</h2>
+      <h2 class="text-xl font-semibold text-blue-800 mb-1">Filters</h2>
+      <p class="text-xs text-blue-600 mb-2">Hold Ctrl (Cmd on Mac) to select multiple options</p>
       <div id="filters" class="flex flex-wrap gap-4">
         <!-- Filter dropdowns will be created dynamically -->
       </div>
@@ -107,14 +114,23 @@
     const searchInput = document.getElementById('searchInput');
     const fileStatus = document.getElementById('fileStatus');
     const resultsArea = document.getElementById('resultsArea');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultCount = document.getElementById('resultCount');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const pageInfo = document.getElementById('pageInfo');
-    const filterContainer = document.getElementById('filterContainer');
-    const filtersDiv = document.getElementById('filters');
-    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+      const resultsContainer = document.getElementById('resultsContainer');
+      const resultCount = document.getElementById('resultCount');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const pageInfo = document.getElementById('pageInfo');
+      const filterContainer = document.getElementById('filterContainer');
+      const filtersDiv = document.getElementById('filters');
+      const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+      const spinner = document.getElementById('spinner');
+
+      function showSpinner() {
+        spinner.classList.remove('hidden');
+      }
+
+      function hideSpinner() {
+        spinner.classList.add('hidden');
+      }
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -148,50 +164,55 @@
     });
 
     // Process CSV file using d3-dsv
-    function processFile(file) {
-      // Reset previous data
-      csvData = [];
-      fileStatus.textContent = 'Processing file...';
-      searchInput.disabled = true;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const csvText = e.target.result;
-          csvData = d3.csvParse(csvText);
-          if (csvData.length === 0) {
-            fileStatus.textContent = 'No records found in the CSV.';
-            return;
-          }
-          // Determine columns dynamically from the CSV header
-          columns = Object.keys(csvData[0] || {});
-          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
-          // For now, we simply rely on per-record checking.
-          
-          // Initialize Fuse.js to search across all columns
-          fuse = new Fuse(csvData, {
-            keys: columns,
-            threshold: 0.4,
-            distance: 100
-          });
-          fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
-          searchInput.disabled = false;
-          resultsArea.classList.remove('hidden');
-          // Build dynamic filter dropdowns for each column that has at least one non-empty value
-          buildFilters();
-          // Set initial results to all records and display first page
-          currentResults = csvData;
-          currentPage = 1;
-          displayResults();
-        } catch (error) {
-          console.error("CSV parse error:", error);
-          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
-        }
-      };
-      reader.onerror = function(error) {
-        fileStatus.textContent = 'Error reading file: ' + error.message;
-      };
-      reader.readAsText(file);
-    }
+      function processFile(file) {
+        // Reset previous data and show spinner
+        csvData = [];
+        fileStatus.textContent = 'Processing file...';
+        searchInput.disabled = true;
+        resultsArea.classList.add('hidden');
+        showSpinner();
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          setTimeout(() => {
+            try {
+              const csvText = e.target.result;
+              csvData = d3.csvParse(csvText);
+              if (csvData.length === 0) {
+                fileStatus.textContent = 'No records found in the CSV.';
+                hideSpinner();
+                return;
+              }
+              // Determine columns dynamically from the CSV header
+              columns = Object.keys(csvData[0] || {});
+              // Initialize Fuse.js to search across all columns
+              fuse = new Fuse(csvData, {
+                keys: columns,
+                threshold: 0.4,
+                distance: 100
+              });
+              fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
+              searchInput.disabled = false;
+              resultsArea.classList.remove('hidden');
+              // Build dynamic filter dropdowns for each column that has at least one non-empty value
+              buildFilters();
+              // Set initial results to all records and display first page
+              currentResults = csvData;
+              currentPage = 1;
+              displayResults();
+            } catch (error) {
+              console.error("CSV parse error:", error);
+              fileStatus.textContent = 'Error parsing CSV: ' + error.message;
+            } finally {
+              hideSpinner();
+            }
+          }, 50);
+        };
+        reader.onerror = function(error) {
+          fileStatus.textContent = 'Error reading file: ' + error.message;
+          hideSpinner();
+        };
+        reader.readAsText(file);
+      }
 
     // Build filter dropdowns for every column that has any non-empty value
     function buildFilters() {
@@ -204,11 +225,14 @@
         if (uniqueVals.length > 0) {
           const select = document.createElement('select');
           select.id = `filter-${field}`;
-          select.className = "border border-blue-300 rounded p-1";
+          select.multiple = true;
+          select.size = Math.min(5, uniqueVals.length + 1);
+          select.className = "border border-blue-300 rounded p-1 h-32";
           // Add a default option for "All"
           const defaultOption = document.createElement('option');
           defaultOption.value = "";
           defaultOption.textContent = field + " (All)";
+          defaultOption.selected = true;
           select.appendChild(defaultOption);
           uniqueVals.forEach(val => {
             const opt = document.createElement('option');
@@ -242,16 +266,55 @@
       // Apply each filter
       columns.forEach(field => {
         const select = document.getElementById(`filter-${field}`);
-        if (select && select.value !== "") {
-          filtered = filtered.filter(record => {
-            return String(record[field]).trim() === select.value;
-          });
+        if (select) {
+          const selectedVals = Array.from(select.selectedOptions)
+                                   .map(opt => opt.value)
+                                   .filter(v => v !== "");
+          if (selectedVals.length > 0) {
+            filtered = filtered.filter(record => {
+              return selectedVals.includes(String(record[field]).trim());
+            });
+          }
         }
       });
       
       currentResults = filtered;
       currentPage = 1;
       displayResults();
+    }
+
+    // Escape RegExp special characters for building a search regex
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+    }
+
+    // Escape HTML to prevent injection
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Highlight the search term within a value if present (case-insensitive)
+    function highlightValue(value, term) {
+      const str = String(value);
+      if (!term) return escapeHtml(str);
+      const regex = new RegExp(escapeRegExp(term), 'gi');
+      let result = '';
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str)) !== null) {
+        result += escapeHtml(str.slice(lastIndex, match.index));
+        result += `<mark>${escapeHtml(match[0])}</mark>`;
+        lastIndex = match.index + match[0].length;
+      }
+      result += escapeHtml(str.slice(lastIndex));
+      return result;
     }
 
     // Display results as cards for the current page
@@ -263,18 +326,41 @@
       
       pageResults.forEach(record => {
         const card = document.createElement('div');
-        card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
+        card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200";
         const list = document.createElement('ul');
         list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
+        const term = searchInput.value.trim();
         columns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+          const displayValue = highlightValue(String(value), term);
+          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${displayValue}`;
           list.appendChild(item);
         });
         card.appendChild(list);
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'absolute top-2 right-2 text-xs text-blue-600 hover:underline';
+        copyBtn.addEventListener('click', () => {
+          const rowText = d3.csvFormatRow(columns.map(c => record[c]));
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(rowText);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = rowText;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try { document.execCommand('copy'); } catch (err) {}
+            document.body.removeChild(ta);
+          }
+        });
+        card.appendChild(copyBtn);
         resultsContainer.appendChild(card);
       });
       
