@@ -98,6 +98,7 @@
     let currentResults = [];
     let currentPage = 1;
     const resultsPerPage = 25;
+    let columnTypes = {};
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
     const fileInput = document.getElementById('fileInput');
@@ -111,6 +112,18 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+
+    function inferColumnType(values) {
+      const nonEmpty = values.filter(v => v !== "");
+      if (nonEmpty.every(v => !isNaN(parseFloat(v)))) return 'number';
+      if (nonEmpty.every(v => !isNaN(Date.parse(v)))) return 'date';
+      return 'string';
+    }
+
+    function formatDate(d) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -193,38 +206,103 @@
     function buildFilters() {
       filtersDiv.innerHTML = "";
       columns.forEach(field => {
-        // Get unique non-empty values for the column
-        const uniqueVals = Array.from(new Set(csvData.map(d => String(d[field] || "").trim()).filter(v => v !== "")))
-                                .sort((a, b) => a.localeCompare(b));
-        // Only create a filter if there is at least one non-empty value
-        if (uniqueVals.length > 0) {
+        const values = csvData.map(d => String(d[field] || '').trim());
+        const nonEmptyVals = values.filter(v => v !== '');
+        if (nonEmptyVals.length === 0) return;
+
+        const type = inferColumnType(values);
+        columnTypes[field] = type;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col';
+        const label = document.createElement('label');
+        label.className = 'text-blue-800 text-sm font-medium';
+        label.textContent = field;
+        wrapper.appendChild(label);
+
+        if (type === 'number') {
+          const nums = nonEmptyVals.map(Number).filter(n => !isNaN(n));
+          const minVal = Math.min(...nums);
+          const maxVal = Math.max(...nums);
+          const minRange = document.createElement('input');
+          minRange.type = 'range';
+          minRange.min = minVal;
+          minRange.max = maxVal;
+          minRange.value = minVal;
+          minRange.id = `filter-${field}-min`;
+          const maxRange = document.createElement('input');
+          maxRange.type = 'range';
+          maxRange.min = minVal;
+          maxRange.max = maxVal;
+          maxRange.value = maxVal;
+          maxRange.id = `filter-${field}-max`;
+          const display = document.createElement('div');
+          display.className = 'flex justify-between text-xs text-blue-700';
+          display.id = `display-${field}`;
+          display.innerHTML = `<span>${minVal}</span><span>${maxVal}</span>`;
+          const updateDisplay = () => {
+            if (parseFloat(minRange.value) > parseFloat(maxRange.value)) {
+              maxRange.value = minRange.value;
+            }
+            if (parseFloat(maxRange.value) < parseFloat(minRange.value)) {
+              minRange.value = maxRange.value;
+            }
+            display.innerHTML = `<span>${minRange.value}</span><span>${maxRange.value}</span>`;
+            updateResults();
+          };
+          minRange.addEventListener('input', updateDisplay);
+          maxRange.addEventListener('input', updateDisplay);
+          wrapper.appendChild(minRange);
+          wrapper.appendChild(maxRange);
+          wrapper.appendChild(display);
+        } else if (type === 'date') {
+          const dates = nonEmptyVals.map(d => new Date(d));
+          const minDate = new Date(Math.min(...dates));
+          const maxDate = new Date(Math.max(...dates));
+          const fromInput = document.createElement('input');
+          fromInput.type = 'date';
+          fromInput.id = `filter-${field}-min`;
+          fromInput.className = 'border border-blue-300 rounded p-1';
+          fromInput.value = formatDate(minDate);
+          fromInput.min = formatDate(minDate);
+          fromInput.max = formatDate(maxDate);
+          const toInput = document.createElement('input');
+          toInput.type = 'date';
+          toInput.id = `filter-${field}-max`;
+          toInput.className = 'border border-blue-300 rounded p-1 mt-1';
+          toInput.value = formatDate(maxDate);
+          toInput.min = formatDate(minDate);
+          toInput.max = formatDate(maxDate);
+          const handleChange = e => {
+            if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
+              if (e.target === fromInput) toInput.value = fromInput.value;
+              else fromInput.value = toInput.value;
+            }
+            updateResults();
+          };
+          fromInput.addEventListener('change', handleChange);
+          toInput.addEventListener('change', handleChange);
+          wrapper.appendChild(fromInput);
+          wrapper.appendChild(toInput);
+        } else {
           const select = document.createElement('select');
           select.id = `filter-${field}`;
-          select.className = "border border-blue-300 rounded p-1";
-          // Add a default option for "All"
+          select.className = 'border border-blue-300 rounded p-1';
           const defaultOption = document.createElement('option');
-          defaultOption.value = "";
-          defaultOption.textContent = field + " (All)";
+          defaultOption.value = '';
+          defaultOption.textContent = field + ' (All)';
           select.appendChild(defaultOption);
+          const uniqueVals = Array.from(new Set(nonEmptyVals)).sort((a, b) => a.localeCompare(b));
           uniqueVals.forEach(val => {
             const opt = document.createElement('option');
             opt.value = val;
             opt.textContent = val;
             select.appendChild(opt);
           });
-          // Update results when the filter changes
           select.addEventListener('change', updateResults);
-          // Create a label and wrapper for the select
-          const wrapper = document.createElement('div');
-          wrapper.className = "flex flex-col";
-          const label = document.createElement('label');
-          label.htmlFor = select.id;
-          label.className = "text-blue-800 text-sm font-medium";
-          label.textContent = field;
-          wrapper.appendChild(label);
           wrapper.appendChild(select);
-          filtersDiv.appendChild(wrapper);
         }
+
+        filtersDiv.appendChild(wrapper);
       });
       // Show filter container now that filters are built
       filterContainer.classList.remove('hidden');
@@ -237,11 +315,37 @@
       
       // Apply each filter
       columns.forEach(field => {
-        const select = document.getElementById(`filter-${field}`);
-        if (select && select.value !== "") {
+        const type = columnTypes[field];
+        if (type === 'number') {
+          const minInput = document.getElementById(`filter-${field}-min`);
+          const maxInput = document.getElementById(`filter-${field}-max`);
+          if (minInput && maxInput) {
+            const minVal = parseFloat(minInput.value);
+            const maxVal = parseFloat(maxInput.value);
+            filtered = filtered.filter(record => {
+              const val = parseFloat(record[field]);
+              return !isNaN(val) && val >= minVal && val <= maxVal;
+            });
+          }
+        } else if (type === 'date') {
+          const minVal = document.getElementById(`filter-${field}-min`).value;
+          const maxVal = document.getElementById(`filter-${field}-max`).value;
           filtered = filtered.filter(record => {
-            return String(record[field]).trim() === select.value;
+            const v = record[field];
+            if (!v) return false;
+            const date = new Date(v);
+            if (isNaN(date)) return false;
+            if (minVal && date < new Date(minVal)) return false;
+            if (maxVal && date > new Date(maxVal)) return false;
+            return true;
           });
+        } else {
+          const select = document.getElementById(`filter-${field}`);
+          if (select && select.value !== "") {
+            filtered = filtered.filter(record => {
+              return String(record[field]).trim() === select.value;
+            });
+          }
         }
       });
       
