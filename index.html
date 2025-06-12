@@ -94,6 +94,7 @@
   <script>
     let csvData = [];
     let columns = [];
+    let columnNames = {};
     let fuse = null;
     let currentResults = [];
     let currentPage = 1;
@@ -193,6 +194,7 @@
     function buildFilters() {
       filtersDiv.innerHTML = "";
       columns.forEach(field => {
+        columnNames[field] = columnNames[field] || field;
         // Get unique non-empty values for the column
         const uniqueVals = Array.from(new Set(csvData.map(d => String(d[field] || "").trim()).filter(v => v !== "")))
                                 .sort((a, b) => a.localeCompare(b));
@@ -204,7 +206,7 @@
           // Add a default option for "All"
           const defaultOption = document.createElement('option');
           defaultOption.value = "";
-          defaultOption.textContent = field + " (All)";
+          defaultOption.textContent = columnNames[field] + " (All)";
           select.appendChild(defaultOption);
           uniqueVals.forEach(val => {
             const opt = document.createElement('option');
@@ -216,12 +218,39 @@
           select.addEventListener('change', updateResults);
           // Create a label and wrapper for the select
           const wrapper = document.createElement('div');
-          wrapper.className = "flex flex-col";
+          wrapper.className = 'flex flex-col';
+          const labelWrapper = document.createElement('div');
+          labelWrapper.className = 'flex items-center';
           const label = document.createElement('label');
           label.htmlFor = select.id;
-          label.className = "text-blue-800 text-sm font-medium";
-          label.textContent = field;
-          wrapper.appendChild(label);
+          label.className = 'text-blue-800 text-sm font-medium';
+          label.textContent = columnNames[field];
+          const edit = document.createElement('span');
+          edit.className = 'cursor-pointer text-xs text-gray-500 ml-1';
+          edit.textContent = '✏';
+          edit.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = columnNames[field];
+            input.className = 'border-b border-blue-400 text-sm w-24';
+            label.replaceWith(input);
+            edit.style.display = 'none';
+            input.focus();
+            const save = () => {
+              const newVal = input.value.trim() || field;
+              columnNames[field] = newVal;
+              label.textContent = newVal;
+              input.replaceWith(label);
+              edit.style.display = 'inline';
+              defaultOption.textContent = newVal + ' (All)';
+              displayResults();
+            };
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); }});
+          });
+          labelWrapper.appendChild(label);
+          labelWrapper.appendChild(edit);
+          wrapper.appendChild(labelWrapper);
           wrapper.appendChild(select);
           filtersDiv.appendChild(wrapper);
         }
@@ -267,7 +296,7 @@
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+          item.innerHTML = `<span class="font-semibold text-red-600">${columnNames[col] || col}:</span> ${value}`;
           list.appendChild(item);
         });
         card.appendChild(list);
