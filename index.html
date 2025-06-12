@@ -88,6 +88,21 @@
         </button>
       </div>
       <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
+
+    </div>
+  </div>
+
+  <!-- Modal for viewing full row -->
+  <div id="rowModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg p-6 max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+      <table class="min-w-full border border-blue-200" id="modalTable">
+        <tbody id="modalTableBody"></tbody>
+      </table>
+      <div class="flex justify-between mt-4">
+        <button id="modalPrev" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">Previous</button>
+        <button id="modalNext" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">Next</button>
+        <button id="modalClose" class="px-4 py-2 bg-gray-500 text-white rounded">Close</button>
+      </div>
     </div>
   </div>
 
@@ -97,6 +112,7 @@
     let fuse = null;
     let currentResults = [];
     let currentPage = 1;
+    let currentRowIndex = 0;
     const resultsPerPage = 25;
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
@@ -111,6 +127,11 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const modal = document.getElementById('rowModal');
+    const modalTableBody = document.getElementById('modalTableBody');
+    const modalPrev = document.getElementById('modalPrev');
+    const modalNext = document.getElementById('modalNext');
+    const modalClose = document.getElementById('modalClose');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -250,6 +271,35 @@
       displayResults();
     }
 
+    function populateModal() {
+      const record = currentResults[currentRowIndex];
+      modalTableBody.innerHTML = '';
+      columns.forEach(col => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.className = 'border px-2 py-1 text-right bg-gray-100';
+        th.textContent = col;
+        const td = document.createElement('td');
+        td.className = 'border px-2 py-1';
+        td.textContent = record[col] || '';
+        tr.appendChild(th);
+        tr.appendChild(td);
+        modalTableBody.appendChild(tr);
+      });
+      modalPrev.disabled = currentRowIndex <= 0;
+      modalNext.disabled = currentRowIndex >= currentResults.length - 1;
+    }
+
+    function openModal(index) {
+      currentRowIndex = index;
+      populateModal();
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
     // Display results as cards for the current page
     function displayResults() {
       resultsContainer.innerHTML = "";
@@ -257,11 +307,12 @@
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
       
-      pageResults.forEach(record => {
-        const card = document.createElement('div');
-        card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
-        const list = document.createElement('ul');
-        list.className = "space-y-1";
+        pageResults.forEach((record, idx) => {
+          const card = document.createElement('div');
+          card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200 cursor-pointer";
+          card.addEventListener('click', () => openModal(startIdx + idx));
+          const list = document.createElement('ul');
+          list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
         columns.forEach(col => {
           const value = record[col] || '';
@@ -296,9 +347,24 @@
         displayResults();
       }
     });
-    
+
     // Handle search input (debounced)
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
+
+    modalClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    modalPrev.addEventListener('click', () => {
+      if (currentRowIndex > 0) {
+        currentRowIndex--;
+        populateModal();
+      }
+    });
+    modalNext.addEventListener('click', () => {
+      if (currentRowIndex < currentResults.length - 1) {
+        currentRowIndex++;
+        populateModal();
+      }
+    });
   </script>
 </body>
 </html>
