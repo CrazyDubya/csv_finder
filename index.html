@@ -60,6 +60,9 @@
       <div id="filters" class="flex flex-wrap gap-4">
         <!-- Filter dropdowns will be created dynamically -->
       </div>
+      <button id="resetFiltersBtn" class="mt-4 px-4 py-2 bg-gray-500 text-white rounded">
+        Reset Filters
+      </button>
     </div>
 
     <!-- Search Bar -->
@@ -111,6 +114,7 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -296,7 +300,17 @@
         displayResults();
       }
     });
-    
+
+    // Reset all filters and search input
+    resetFiltersBtn.addEventListener('click', () => {
+      columns.forEach(field => {
+        const select = document.getElementById(`filter-${field}`);
+        if (select) select.value = '';
+      });
+      searchInput.value = '';
+      updateResults();
+    });
+
     // Handle search input (debounced)
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
   </script>
