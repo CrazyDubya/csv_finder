@@ -322,7 +322,7 @@
       
       pageResults.forEach(record => {
         const card = document.createElement('div');
-        card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
+        card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200";
         const list = document.createElement('ul');
         list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
@@ -336,6 +336,27 @@
           list.appendChild(item);
         });
         card.appendChild(list);
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'absolute top-2 right-2 text-xs text-blue-600 hover:underline';
+        copyBtn.addEventListener('click', () => {
+          const rowText = d3.csvFormatRow(columns.map(c => record[c]));
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(rowText);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = rowText;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try { document.execCommand('copy'); } catch (err) {}
+            document.body.removeChild(ta);
+          }
+        });
+        card.appendChild(copyBtn);
         resultsContainer.appendChild(card);
       });
       
