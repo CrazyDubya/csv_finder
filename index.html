@@ -78,11 +78,20 @@
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
       <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       <!-- Pagination Controls -->
-      <div id="pagination" class="mt-4 flex justify-between items-center">
+      <div id="pagination" class="mt-4 flex justify-between items-center gap-2">
         <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
           Previous
         </button>
         <span id="pageInfo" class="text-blue-700"></span>
+        <div class="flex items-center gap-1">
+          <label for="pageSize" class="text-sm text-blue-700">Per page:</label>
+          <select id="pageSize" class="border border-blue-300 rounded p-1">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
         <button id="nextBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
           Next
         </button>
@@ -97,7 +106,7 @@
     let fuse = null;
     let currentResults = [];
     let currentPage = 1;
-    const resultsPerPage = 25;
+    let resultsPerPage = 25;
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
     const fileInput = document.getElementById('fileInput');
@@ -109,6 +118,7 @@
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const pageInfo = document.getElementById('pageInfo');
+    const pageSizeSelect = document.getElementById('pageSize');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
 
@@ -293,6 +303,16 @@
       const totalPages = Math.ceil(currentResults.length / resultsPerPage);
       if (currentPage < totalPages) {
         currentPage++;
+        displayResults();
+      }
+    });
+
+    // Change page size
+    pageSizeSelect.addEventListener('change', () => {
+      const newSize = parseInt(pageSizeSelect.value, 10);
+      if (!isNaN(newSize)) {
+        resultsPerPage = newSize;
+        currentPage = 1;
         displayResults();
       }
     });
