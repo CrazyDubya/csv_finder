@@ -54,6 +54,15 @@
       </div>
     </div>
 
+    <!-- Remote CSV URL -->
+    <div id="urlArea" class="bg-white rounded-xl p-6 mb-10 shadow-lg">
+      <div class="flex flex-col sm:flex-row items-start sm:items-end gap-2">
+        <input type="text" id="urlInput" class="flex-grow border border-blue-300 rounded p-2 w-full" placeholder="https://example.com/data.csv" />
+        <button id="loadUrlBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Load CSV from URL</button>
+      </div>
+      <p id="urlStatus" class="text-blue-700 mt-2"></p>
+    </div>
+
     <!-- Filter Controls -->
     <div id="filterContainer" class="mb-6 hidden">
       <h2 class="text-xl font-semibold text-blue-800 mb-2">Filters</h2>
@@ -111,6 +120,9 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const urlInput = document.getElementById('urlInput');
+    const loadUrlBtn = document.getElementById('loadUrlBtn');
+    const urlStatus = document.getElementById('urlStatus');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -143,50 +155,66 @@
       if (file) processFile(file);
     });
 
+    loadUrlBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      if (url) loadRemoteCSV(url);
+    });
+
     // Process CSV file using d3-dsv
     function processFile(file) {
-      // Reset previous data
       csvData = [];
       fileStatus.textContent = 'Processing file...';
       searchInput.disabled = true;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const csvText = e.target.result;
-          csvData = d3.csvParse(csvText);
-          if (csvData.length === 0) {
-            fileStatus.textContent = 'No records found in the CSV.';
-            return;
-          }
-          // Determine columns dynamically from the CSV header
-          columns = Object.keys(csvData[0] || {});
-          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
-          // For now, we simply rely on per-record checking.
-          
-          // Initialize Fuse.js to search across all columns
-          fuse = new Fuse(csvData, {
-            keys: columns,
-            threshold: 0.4,
-            distance: 100
-          });
-          fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
-          searchInput.disabled = false;
-          resultsArea.classList.remove('hidden');
-          // Build dynamic filter dropdowns for each column that has at least one non-empty value
-          buildFilters();
-          // Set initial results to all records and display first page
-          currentResults = csvData;
-          currentPage = 1;
-          displayResults();
-        } catch (error) {
-          console.error("CSV parse error:", error);
-          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
-        }
-      };
-      reader.onerror = function(error) {
-        fileStatus.textContent = 'Error reading file: ' + error.message;
+      reader.onload = e => parseCsvText(e.target.result, fileStatus);
+      reader.onerror = err => {
+        fileStatus.textContent = 'Error reading file: ' + err.message;
       };
       reader.readAsText(file);
+    }
+
+    // Fetch a remote CSV and process it
+    function loadRemoteCSV(url) {
+      csvData = [];
+      urlStatus.textContent = 'Fetching CSV...';
+      searchInput.disabled = true;
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error(res.statusText || 'Network error');
+          return res.text();
+        })
+        .then(text => parseCsvText(text, urlStatus))
+        .catch(err => {
+          console.error('Fetch error:', err);
+          urlStatus.textContent = 'Error fetching CSV: ' + err.message;
+        });
+    }
+
+    // Parse CSV text and initialize UI
+    function parseCsvText(csvText, statusEl) {
+      try {
+        csvData = d3.csvParse(csvText);
+        if (csvData.length === 0) {
+          statusEl.textContent = 'No records found in the CSV.';
+          return;
+        }
+        columns = Object.keys(csvData[0] || {});
+        fuse = new Fuse(csvData, {
+          keys: columns,
+          threshold: 0.4,
+          distance: 100
+        });
+        statusEl.textContent = `Loaded ${csvData.length} rows successfully.`;
+        searchInput.disabled = false;
+        resultsArea.classList.remove('hidden');
+        buildFilters();
+        currentResults = csvData;
+        currentPage = 1;
+        displayResults();
+      } catch (error) {
+        console.error('CSV parse error:', error);
+        statusEl.textContent = 'Error parsing CSV: ' + error.message;
+      }
     }
 
     // Build filter dropdowns for every column that has any non-empty value
