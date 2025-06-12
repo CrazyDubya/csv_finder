@@ -250,6 +250,18 @@
       displayResults();
     }
 
+    // Escape RegExp special characters for building a search regex
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+    }
+
+    // Highlight the search term within a value if present (case-insensitive)
+    function highlightValue(value, term) {
+      if (!term) return value;
+      const regex = new RegExp(escapeRegExp(term), 'gi');
+      return value.replace(regex, match => `<mark>${match}</mark>`);
+    }
+
     // Display results as cards for the current page
     function displayResults() {
       resultsContainer.innerHTML = "";
@@ -263,11 +275,13 @@
         const list = document.createElement('ul');
         list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
+        const term = searchInput.value.trim();
         columns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+          const displayValue = highlightValue(String(value), term);
+          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${displayValue}`;
           list.appendChild(item);
         });
         card.appendChild(list);
