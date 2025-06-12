@@ -76,6 +76,9 @@
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
+      <div class="mb-4 text-right">
+        <button id="toggleViewBtn" class="px-2 py-1 bg-blue-200 text-blue-800 rounded">Grid View</button>
+      </div>
       <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       <!-- Pagination Controls -->
       <div id="pagination" class="mt-4 flex justify-between items-center">
@@ -105,12 +108,25 @@
     const fileStatus = document.getElementById('fileStatus');
     const resultsArea = document.getElementById('resultsArea');
     const resultsContainer = document.getElementById('resultsContainer');
+    const toggleViewBtn = document.getElementById('toggleViewBtn');
     const resultCount = document.getElementById('resultCount');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+
+    const savedState = JSON.parse(localStorage.getItem('csvViewerState') || '{}');
+    let viewMode = savedState.viewMode || 'grid';
+    let savedFilters = savedState.filters || {};
+    currentPage = savedState.page || 1;
+    searchInput.value = savedState.search || '';
+
+    toggleViewBtn.addEventListener('click', () => {
+      viewMode = viewMode === 'grid' ? 'list' : 'grid';
+      displayResults();
+      saveState();
+    });
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -174,10 +190,11 @@
           resultsArea.classList.remove('hidden');
           // Build dynamic filter dropdowns for each column that has at least one non-empty value
           buildFilters();
-          // Set initial results to all records and display first page
           currentResults = csvData;
-          currentPage = 1;
+          updateResults();
+          currentPage = savedState.page || 1;
           displayResults();
+          saveState();
         } catch (error) {
           console.error("CSV parse error:", error);
           fileStatus.textContent = 'Error parsing CSV: ' + error.message;
@@ -213,7 +230,13 @@
             select.appendChild(opt);
           });
           // Update results when the filter changes
-          select.addEventListener('change', updateResults);
+          select.addEventListener('change', () => {
+            updateResults();
+            saveState();
+          });
+          if (savedFilters[field]) {
+            select.value = savedFilters[field];
+          }
           // Create a label and wrapper for the select
           const wrapper = document.createElement('div');
           wrapper.className = "flex flex-col";
@@ -252,6 +275,7 @@
 
     // Display results as cards for the current page
     function displayResults() {
+      applyViewMode();
       resultsContainer.innerHTML = "";
       const startIdx = (currentPage - 1) * resultsPerPage;
       const endIdx = startIdx + resultsPerPage;
@@ -282,11 +306,40 @@
       nextBtn.disabled = currentPage >= totalPages;
     }
 
+    function applyViewMode() {
+      if (viewMode === 'grid') {
+        resultsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+        toggleViewBtn.textContent = 'Grid View';
+      } else {
+        resultsContainer.className = 'flex flex-col gap-6';
+        toggleViewBtn.textContent = 'List View';
+      }
+    }
+
+    function getFilterValues() {
+      const obj = {};
+      columns.forEach(field => {
+        const select = document.getElementById(`filter-${field}`);
+        if (select) obj[field] = select.value;
+      });
+      return obj;
+    }
+
+    function saveState() {
+      localStorage.setItem('csvViewerState', JSON.stringify({
+        search: searchInput.value.trim(),
+        filters: getFilterValues(),
+        page: currentPage,
+        viewMode
+      }));
+    }
+
     // Pagination controls
     prevBtn.addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
         displayResults();
+        saveState();
       }
     });
     nextBtn.addEventListener('click', () => {
@@ -294,11 +347,15 @@
       if (currentPage < totalPages) {
         currentPage++;
         displayResults();
+        saveState();
       }
     });
     
     // Handle search input (debounced)
-    searchInput.addEventListener('input', _.debounce(updateResults, 300));
+    searchInput.addEventListener('input', _.debounce(() => {
+      updateResults();
+      saveState();
+    }, 300));
   </script>
 </body>
 </html>
