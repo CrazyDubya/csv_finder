@@ -255,11 +255,33 @@
       return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
     }
 
+    // Escape HTML to prevent injection
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
     // Highlight the search term within a value if present (case-insensitive)
     function highlightValue(value, term) {
-      if (!term) return value;
+      const str = String(value);
+      if (!term) return escapeHtml(str);
       const regex = new RegExp(escapeRegExp(term), 'gi');
-      return value.replace(regex, match => `<mark>${match}</mark>`);
+      let result = '';
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str)) !== null) {
+        result += escapeHtml(str.slice(lastIndex, match.index));
+        result += `<mark>${escapeHtml(match[0])}</mark>`;
+        lastIndex = match.index + match[0].length;
+      }
+      result += escapeHtml(str.slice(lastIndex));
+      return result;
     }
 
     // Display results as cards for the current page
