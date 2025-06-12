@@ -270,6 +270,40 @@
       displayResults();
     }
 
+    // Escape RegExp special characters for building a search regex
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+    }
+
+    // Escape HTML to prevent injection
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Highlight the search term within a value if present (case-insensitive)
+    function highlightValue(value, term) {
+      const str = String(value);
+      if (!term) return escapeHtml(str);
+      const regex = new RegExp(escapeRegExp(term), 'gi');
+      let result = '';
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str)) !== null) {
+        result += escapeHtml(str.slice(lastIndex, match.index));
+        result += `<mark>${escapeHtml(match[0])}</mark>`;
+        lastIndex = match.index + match[0].length;
+      }
+      result += escapeHtml(str.slice(lastIndex));
+      return result;
+    }
+
     // Display results as cards for the current page
     function displayResults() {
       resultsContainer.innerHTML = "";
@@ -283,11 +317,13 @@
         const list = document.createElement('ul');
         list.className = "space-y-1";
         // For each column, display it only if the value is non-empty
+        const term = searchInput.value.trim();
         columns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+          const displayValue = highlightValue(String(value), term);
+          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${displayValue}`;
           list.appendChild(item);
         });
         card.appendChild(list);
