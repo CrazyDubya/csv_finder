@@ -73,6 +73,12 @@
              placeholder="Search records..." disabled />
     </div>
 
+    <!-- Statistics Area -->
+    <div id="statsArea" class="mb-6 hidden">
+      <h2 class="text-xl font-bold mb-2 text-blue-800">Numeric Statistics</h2>
+      <div id="statsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
@@ -111,6 +117,8 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const statsArea = document.getElementById('statsArea');
+    const statsContainer = document.getElementById('statsContainer');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -174,6 +182,9 @@
           resultsArea.classList.remove('hidden');
           // Build dynamic filter dropdowns for each column that has at least one non-empty value
           buildFilters();
+          // Compute statistics for numeric columns
+          const stats = computeNumericStats();
+          displayStats(stats);
           // Set initial results to all records and display first page
           currentResults = csvData;
           currentPage = 1;
@@ -228,6 +239,43 @@
       });
       // Show filter container now that filters are built
       filterContainer.classList.remove('hidden');
+    }
+
+    function computeNumericStats() {
+      const stats = {};
+      columns.forEach(col => {
+        const values = csvData.map(r => String(r[col] || '').trim()).filter(v => v !== '');
+        const nums = values.map(v => Number(v)).filter(v => !isNaN(v));
+        if (values.length > 0 && nums.length === values.length) {
+          const count = nums.length;
+          const min = Math.min(...nums);
+          const max = Math.max(...nums);
+          const avg = nums.reduce((a, b) => a + b, 0) / count;
+          stats[col] = { count, min, max, avg };
+        }
+      });
+      return stats;
+    }
+
+    function displayStats(stats) {
+      statsContainer.innerHTML = '';
+      const keys = Object.keys(stats);
+      if (keys.length === 0) {
+        statsArea.classList.add('hidden');
+        return;
+      }
+      keys.forEach(col => {
+        const s = stats[col];
+        const card = document.createElement('div');
+        card.className = 'bg-white p-4 rounded shadow';
+        card.innerHTML = `<h3 class="font-semibold text-red-600 mb-1">${col}</h3>` +
+          `<p class="text-sm text-blue-800">Count: ${s.count}</p>` +
+          `<p class="text-sm text-blue-800">Min: ${s.min}</p>` +
+          `<p class="text-sm text-blue-800">Max: ${s.max}</p>` +
+          `<p class="text-sm text-blue-800">Average: ${s.avg.toFixed(2)}</p>`;
+        statsContainer.appendChild(card);
+      });
+      statsArea.classList.remove('hidden');
     }
 
     // Update results based on search input and filter selections
