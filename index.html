@@ -51,6 +51,12 @@
         <p id="fileStatus" class="text-lg">
           Drag &amp; drop your CSV file here or click to select a file
         </p>
+        <div id="spinner" class="hidden mt-4 flex justify-center">
+          <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+        </div>
       </div>
     </div>
 
@@ -104,13 +110,22 @@
     const searchInput = document.getElementById('searchInput');
     const fileStatus = document.getElementById('fileStatus');
     const resultsArea = document.getElementById('resultsArea');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultCount = document.getElementById('resultCount');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const pageInfo = document.getElementById('pageInfo');
-    const filterContainer = document.getElementById('filterContainer');
-    const filtersDiv = document.getElementById('filters');
+      const resultsContainer = document.getElementById('resultsContainer');
+      const resultCount = document.getElementById('resultCount');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const pageInfo = document.getElementById('pageInfo');
+      const filterContainer = document.getElementById('filterContainer');
+      const filtersDiv = document.getElementById('filters');
+      const spinner = document.getElementById('spinner');
+
+      function showSpinner() {
+        spinner.classList.remove('hidden');
+      }
+
+      function hideSpinner() {
+        spinner.classList.add('hidden');
+      }
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -144,50 +159,55 @@
     });
 
     // Process CSV file using d3-dsv
-    function processFile(file) {
-      // Reset previous data
-      csvData = [];
-      fileStatus.textContent = 'Processing file...';
-      searchInput.disabled = true;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const csvText = e.target.result;
-          csvData = d3.csvParse(csvText);
-          if (csvData.length === 0) {
-            fileStatus.textContent = 'No records found in the CSV.';
-            return;
-          }
-          // Determine columns dynamically from the CSV header
-          columns = Object.keys(csvData[0] || {});
-          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
-          // For now, we simply rely on per-record checking.
-          
-          // Initialize Fuse.js to search across all columns
-          fuse = new Fuse(csvData, {
-            keys: columns,
-            threshold: 0.4,
-            distance: 100
-          });
-          fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
-          searchInput.disabled = false;
-          resultsArea.classList.remove('hidden');
-          // Build dynamic filter dropdowns for each column that has at least one non-empty value
-          buildFilters();
-          // Set initial results to all records and display first page
-          currentResults = csvData;
-          currentPage = 1;
-          displayResults();
-        } catch (error) {
-          console.error("CSV parse error:", error);
-          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
-        }
-      };
-      reader.onerror = function(error) {
-        fileStatus.textContent = 'Error reading file: ' + error.message;
-      };
-      reader.readAsText(file);
-    }
+      function processFile(file) {
+        // Reset previous data and show spinner
+        csvData = [];
+        fileStatus.textContent = 'Processing file...';
+        searchInput.disabled = true;
+        resultsArea.classList.add('hidden');
+        showSpinner();
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          setTimeout(() => {
+            try {
+              const csvText = e.target.result;
+              csvData = d3.csvParse(csvText);
+              if (csvData.length === 0) {
+                fileStatus.textContent = 'No records found in the CSV.';
+                hideSpinner();
+                return;
+              }
+              // Determine columns dynamically from the CSV header
+              columns = Object.keys(csvData[0] || {});
+              // Initialize Fuse.js to search across all columns
+              fuse = new Fuse(csvData, {
+                keys: columns,
+                threshold: 0.4,
+                distance: 100
+              });
+              fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
+              searchInput.disabled = false;
+              resultsArea.classList.remove('hidden');
+              // Build dynamic filter dropdowns for each column that has at least one non-empty value
+              buildFilters();
+              // Set initial results to all records and display first page
+              currentResults = csvData;
+              currentPage = 1;
+              displayResults();
+            } catch (error) {
+              console.error("CSV parse error:", error);
+              fileStatus.textContent = 'Error parsing CSV: ' + error.message;
+            } finally {
+              hideSpinner();
+            }
+          }, 50);
+        };
+        reader.onerror = function(error) {
+          fileStatus.textContent = 'Error reading file: ' + error.message;
+          hideSpinner();
+        };
+        reader.readAsText(file);
+      }
 
     // Build filter dropdowns for every column that has any non-empty value
     function buildFilters() {
