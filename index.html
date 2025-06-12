@@ -6,10 +6,7 @@
   <title>Dynamic CSV Viewer</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- d3-dsv for CSV parsing -->
-  <script src="https://d3js.org/d3-dsv.v2.min.js"></script>
-  <!-- Fuse.js for fuzzy search -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.min.js"></script>
+  <!-- Parsing and searching are done in a Web Worker (worker.js) -->
   <!-- Lodash for debounce -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
   <style>
@@ -76,17 +73,8 @@
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
-      <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-      <!-- Pagination Controls -->
-      <div id="pagination" class="mt-4 flex justify-between items-center">
-        <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
-          Previous
-        </button>
-        <span id="pageInfo" class="text-blue-700"></span>
-        <button id="nextBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
-          Next
-        </button>
-      </div>
+      <div id="resultsContainer" class="space-y-4"></div>
+      <!-- Results will be virtualized; pagination buttons removed -->
       <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
     </div>
   </div>
@@ -94,10 +82,10 @@
   <script>
     let csvData = [];
     let columns = [];
-    let fuse = null;
     let currentResults = [];
-    let currentPage = 1;
-    const resultsPerPage = 25;
+    const worker = new Worker('worker.js');
+    const BUFFER = 5; // number of items to render above/below the viewport
+    let approxHeight = 120; // estimated card height for virtualization
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
     const fileInput = document.getElementById('fileInput');
@@ -106,11 +94,27 @@
     const resultsArea = document.getElementById('resultsArea');
     const resultsContainer = document.getElementById('resultsContainer');
     const resultCount = document.getElementById('resultCount');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+
+    worker.onmessage = function(e) {
+      const msg = e.data;
+      if (msg.type === 'parsed') {
+        csvData = msg.data;
+        columns = msg.columns;
+        fileStatus.textContent = `Loaded ${msg.total} rows successfully.`;
+        searchInput.disabled = false;
+        resultsArea.classList.remove('hidden');
+        buildFilters();
+        currentResults = csvData;
+        displayResults();
+      } else if (msg.type === 'results') {
+        currentResults = msg.results;
+        displayResults();
+      } else if (msg.type === 'error') {
+        fileStatus.textContent = 'Error: ' + msg.message;
+      }
+    };
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -151,43 +155,13 @@
       searchInput.disabled = true;
       const reader = new FileReader();
       reader.onload = function(e) {
-        try {
-          const csvText = e.target.result;
-          csvData = d3.csvParse(csvText);
-          if (csvData.length === 0) {
-            fileStatus.textContent = 'No records found in the CSV.';
-            return;
-          }
-          // Determine columns dynamically from the CSV header
-          columns = Object.keys(csvData[0] || {});
-          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
-          // For now, we simply rely on per-record checking.
-          
-          // Initialize Fuse.js to search across all columns
-          fuse = new Fuse(csvData, {
-            keys: columns,
-            threshold: 0.4,
-            distance: 100
-          });
-          fileStatus.textContent = `Loaded ${csvData.length} rows successfully.`;
-          searchInput.disabled = false;
-          resultsArea.classList.remove('hidden');
-          // Build dynamic filter dropdowns for each column that has at least one non-empty value
-          buildFilters();
-          // Set initial results to all records and display first page
-          currentResults = csvData;
-          currentPage = 1;
-          displayResults();
-        } catch (error) {
-          console.error("CSV parse error:", error);
-          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
-        }
+        worker.postMessage({ type: 'parse', text: e.target.result });
       };
       reader.onerror = function(error) {
         fileStatus.textContent = 'Error reading file: ' + error.message;
       };
       reader.readAsText(file);
-    }
+   }
 
     // Build filter dropdowns for every column that has any non-empty value
     function buildFilters() {
@@ -233,69 +207,67 @@
     // Update results based on search input and filter selections
     function updateResults() {
       const term = searchInput.value.trim();
-      let filtered = term === "" ? csvData : fuse.search(term).map(r => r.item);
-      
-      // Apply each filter
+      const filters = {};
       columns.forEach(field => {
         const select = document.getElementById(`filter-${field}`);
         if (select && select.value !== "") {
-          filtered = filtered.filter(record => {
-            return String(record[field]).trim() === select.value;
-          });
+          filters[field] = select.value;
         }
       });
-      
-      currentResults = filtered;
-      currentPage = 1;
-      displayResults();
+      worker.postMessage({ type: 'search', term, filters });
     }
 
     // Display results as cards for the current page
+    let topSpacer, listContainer, bottomSpacer;
     function displayResults() {
-      resultsContainer.innerHTML = "";
-      const startIdx = (currentPage - 1) * resultsPerPage;
-      const endIdx = startIdx + resultsPerPage;
-      const pageResults = currentResults.slice(startIdx, endIdx);
-      
-      pageResults.forEach(record => {
-        const card = document.createElement('div');
-        card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
-        const list = document.createElement('ul');
-        list.className = "space-y-1";
-        // For each column, display it only if the value is non-empty
-        columns.forEach(col => {
-          const value = record[col] || '';
-          if (value.trim() === "") return;
-          const item = document.createElement('li');
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
-          list.appendChild(item);
-        });
-        card.appendChild(list);
-        resultsContainer.appendChild(card);
-      });
-      
-      const totalPages = Math.ceil(currentResults.length / resultsPerPage);
-      resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? "" : "s"}.`;
-      pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-      
-      prevBtn.disabled = currentPage <= 1;
-      nextBtn.disabled = currentPage >= totalPages;
+      resultsContainer.innerHTML = '';
+      resultsContainer.style.maxHeight = '70vh';
+      resultsContainer.style.overflowY = 'auto';
+      topSpacer = document.createElement('div');
+      listContainer = document.createElement('div');
+      bottomSpacer = document.createElement('div');
+      resultsContainer.appendChild(topSpacer);
+      resultsContainer.appendChild(listContainer);
+      resultsContainer.appendChild(bottomSpacer);
+      resultsContainer.removeEventListener('scroll', renderVisible);
+      resultsContainer.addEventListener('scroll', renderVisible);
+      renderVisible();
     }
 
-    // Pagination controls
-    prevBtn.addEventListener('click', () => {
-      if (currentPage > 1) {
-        currentPage--;
-        displayResults();
+    function createCard(record) {
+      const card = document.createElement('div');
+      card.className = 'bg-white shadow-md rounded-lg p-4 border border-blue-200';
+      const list = document.createElement('ul');
+      list.className = 'space-y-1';
+      columns.forEach(col => {
+        const value = record[col] || '';
+        if (value.trim() === '') return;
+        const item = document.createElement('li');
+        item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${value}`;
+        list.appendChild(item);
+      });
+      card.appendChild(list);
+      return card;
+    }
+
+    function renderVisible() {
+      const scrollTop = resultsContainer.scrollTop;
+      const containerHeight = resultsContainer.clientHeight;
+      let start = Math.floor(scrollTop / approxHeight) - BUFFER;
+      if (start < 0) start = 0;
+      let end = start + Math.ceil(containerHeight / approxHeight) + BUFFER * 2;
+      if (end > currentResults.length) end = currentResults.length;
+      topSpacer.style.height = start * approxHeight + 'px';
+      bottomSpacer.style.height = (currentResults.length - end) * approxHeight + 'px';
+      listContainer.innerHTML = '';
+      for (let i = start; i < end; i++) {
+        listContainer.appendChild(createCard(currentResults[i]));
       }
-    });
-    nextBtn.addEventListener('click', () => {
-      const totalPages = Math.ceil(currentResults.length / resultsPerPage);
-      if (currentPage < totalPages) {
-        currentPage++;
-        displayResults();
+      if (listContainer.firstChild) {
+        approxHeight = listContainer.firstChild.getBoundingClientRect().height;
       }
-    });
+      resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? '' : 's'}.`;
+    }
     
     // Handle search input (debounced)
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
