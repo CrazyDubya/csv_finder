@@ -62,6 +62,14 @@
       </div>
     </div>
 
+    <!-- Column Selector -->
+    <div id="columnContainer" class="mb-6 hidden">
+      <h2 class="text-xl font-semibold text-blue-800 mb-2">Visible Columns</h2>
+      <div id="columnCheckboxes" class="flex flex-wrap gap-4">
+        <!-- Column checkboxes will be created dynamically -->
+      </div>
+    </div>
+
     <!-- Search Bar -->
     <div class="bg-white rounded-full shadow-lg mb-6 px-6 py-4 flex items-center">
       <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,6 +102,7 @@
   <script>
     let csvData = [];
     let columns = [];
+    let selectedColumns = [];
     let fuse = null;
     let currentResults = [];
     let currentPage = 1;
@@ -111,6 +120,8 @@
     const pageInfo = document.getElementById('pageInfo');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const columnContainer = document.getElementById('columnContainer');
+    const columnCheckboxes = document.getElementById('columnCheckboxes');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -147,6 +158,8 @@
     function processFile(file) {
       // Reset previous data
       csvData = [];
+      columnContainer.classList.add('hidden');
+      filterContainer.classList.add('hidden');
       fileStatus.textContent = 'Processing file...';
       searchInput.disabled = true;
       const reader = new FileReader();
@@ -160,6 +173,7 @@
           }
           // Determine columns dynamically from the CSV header
           columns = Object.keys(csvData[0] || {});
+          selectedColumns = [...columns];
           // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
           // For now, we simply rely on per-record checking.
           
@@ -174,6 +188,8 @@
           resultsArea.classList.remove('hidden');
           // Build dynamic filter dropdowns for each column that has at least one non-empty value
           buildFilters();
+          // Build column visibility checkboxes
+          buildColumnSelectors();
           // Set initial results to all records and display first page
           currentResults = csvData;
           currentPage = 1;
@@ -230,6 +246,34 @@
       filterContainer.classList.remove('hidden');
     }
 
+    // Build checkboxes to toggle column visibility
+    function buildColumnSelectors() {
+      columnCheckboxes.innerHTML = "";
+      selectedColumns = [...columns];
+      columns.forEach(field => {
+        const label = document.createElement('label');
+        label.className = "flex items-center space-x-1";
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = field;
+        checkbox.checked = true;
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            if (!selectedColumns.includes(field)) selectedColumns.push(field);
+          } else {
+            selectedColumns = selectedColumns.filter(c => c !== field);
+          }
+          displayResults();
+        });
+        label.appendChild(checkbox);
+        const span = document.createElement('span');
+        span.textContent = field;
+        label.appendChild(span);
+        columnCheckboxes.appendChild(label);
+      });
+      columnContainer.classList.remove('hidden');
+    }
+
     // Update results based on search input and filter selections
     function updateResults() {
       const term = searchInput.value.trim();
@@ -262,8 +306,8 @@
         card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200";
         const list = document.createElement('ul');
         list.className = "space-y-1";
-        // For each column, display it only if the value is non-empty
-        columns.forEach(col => {
+        // For each selected column, display it only if the value is non-empty
+        selectedColumns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
