@@ -62,7 +62,8 @@
 
     <!-- Filter Controls -->
     <div id="filterContainer" class="mb-6 hidden">
-      <h2 class="text-xl font-semibold text-blue-800 mb-2">Filters</h2>
+      <h2 class="text-xl font-semibold text-blue-800 mb-1">Filters</h2>
+      <p class="text-xs text-blue-600 mb-2">Hold Ctrl (Cmd on Mac) to select multiple options</p>
       <div id="filters" class="flex flex-wrap gap-4">
         <!-- Filter dropdowns will be created dynamically -->
       </div>
@@ -220,11 +221,14 @@
         if (uniqueVals.length > 0) {
           const select = document.createElement('select');
           select.id = `filter-${field}`;
-          select.className = "border border-blue-300 rounded p-1";
+          select.multiple = true;
+          select.size = Math.min(5, uniqueVals.length + 1);
+          select.className = "border border-blue-300 rounded p-1 h-32";
           // Add a default option for "All"
           const defaultOption = document.createElement('option');
           defaultOption.value = "";
           defaultOption.textContent = field + " (All)";
+          defaultOption.selected = true;
           select.appendChild(defaultOption);
           uniqueVals.forEach(val => {
             const opt = document.createElement('option');
@@ -258,10 +262,15 @@
       // Apply each filter
       columns.forEach(field => {
         const select = document.getElementById(`filter-${field}`);
-        if (select && select.value !== "") {
-          filtered = filtered.filter(record => {
-            return String(record[field]).trim() === select.value;
-          });
+        if (select) {
+          const selectedVals = Array.from(select.selectedOptions)
+                                   .map(opt => opt.value)
+                                   .filter(v => v !== "");
+          if (selectedVals.length > 0) {
+            filtered = filtered.filter(record => {
+              return selectedVals.includes(String(record[field]).trim());
+            });
+          }
         }
       });
       
