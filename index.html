@@ -391,7 +391,11 @@
     resetFiltersBtn.addEventListener('click', () => {
       columns.forEach(field => {
         const select = document.getElementById(`filter-${field}`);
-        if (select) select.value = '';
+        if (select) {
+          Array.from(select.options).forEach(opt => {
+            opt.selected = opt.value === '';
+          });
+        }
       });
       searchInput.value = '';
       updateResults();
