@@ -347,9 +347,9 @@
             if (maxVal && date > new Date(maxVal)) return false;
             return true;
           });
-        } else {
+        }
+      } else {
           const select = document.getElementById(`filter-${field}`);
-          if (select && select.value !== "") {
             filtered = filtered.filter(record => {
               return String(record[field]).trim() === select.value;
             });
