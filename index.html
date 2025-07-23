@@ -121,7 +121,7 @@
     }
 
     function isStrictNumber(value) {
-      return !isNaN(value) && !isNaN(parseFloat(value)) && !isNaN(Date.parse(value)) === false;
+      return !isNaN(value) && !isNaN(parseFloat(value)) && isNaN(Date.parse(value));
     }
     function formatDate(d) {
       const pad = n => String(n).padStart(2, '0');
