@@ -310,10 +310,13 @@
     // Change page size
     pageSizeSelect.addEventListener('change', () => {
       const newSize = parseInt(pageSizeSelect.value, 10);
-      if (!isNaN(newSize)) {
+      if (!isNaN(newSize) && newSize >= 1 && newSize <= 1000) {
         resultsPerPage = newSize;
         currentPage = 1;
         displayResults();
+      } else {
+        alert("Please select a page size between 1 and 1000.");
+        pageSizeSelect.value = resultsPerPage; // Reset to the current valid value
       }
     });
     
