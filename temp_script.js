@@ -1,12 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dynamic CSV Viewer</title>
-  <!-- Local CSS -->
-  <link rel="stylesheet" href="style.css">
-  <script>
     try {
       if (localStorage.theme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -15,192 +6,6 @@
       console.warn('localStorage is not available. Defaulting to light theme.', e);
     }
   </script>
-  <!-- Local JavaScript dependencies -->
-  <script src="d3-csv.js"></script>
-  <script src="fuse.js"></script>
-  <script src="utils.js"></script>
-  <style>
-    /* Generic colorful header styling */
-    .gradient-header {
-      background: linear-gradient(90deg, #ff4d4d, #ffffff, #4d79ff);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-    .drag-area {
-      border: 2px dashed #93c5fd;
-      transition: all 0.3s ease;
-    }
-    .drag-area.dragover {
-      border-color: #2563eb;
-      background-color: rgba(37, 99, 235, 0.1);
-    }
-  </style>
-</head>
-<body class="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100">
-  <button id="themeToggle" class="fixed top-4 right-4 btn-blue">Dark Mode</button>
-  <div class="container mx-auto px-4 py-10">
-    <!-- Header -->
-    <div class="text-center mb-10">
-      <h1 class="text-5xl font-extrabold gradient-header">Dynamic CSV Viewer</h1>
-      <p class="mt-2 text-blue-700 font-medium">
-        Upload a CSV file below to search and filter records across all fields.
-      </p>
-    </div>
-
-    <!-- File Upload Area -->
-    <div id="dragArea" class="drag-area bg-white dark:bg-gray-800 rounded-xl p-10 mb-10 shadow-lg cursor-pointer transition-colors text-center">
-      <input type="file" id="fileInput" accept=".csv" class="hidden" />
-      <div class="flex flex-col items-center text-blue-600 dark:text-blue-300">
-        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-        </svg>
-        <p id="fileStatus" class="text-lg">
-          Drag &amp; drop your CSV file here or click to select a file
-        </p>
-        <div id="spinner" class="hidden mt-4 flex justify-center">
-          <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-          </svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- Remote CSV URL -->
-    <div id="urlArea" class="bg-white rounded-xl p-6 mb-10 shadow-lg">
-      <div class="flex flex-col sm:flex-row items-start sm:items-end gap-2">
-        <input type="text" id="urlInput" class="flex-grow border border-blue-300 rounded p-2 w-full" placeholder="https://example.com/data.csv" />
-        <button id="loadUrlBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Load CSV from URL</button>
-      </div>
-      <p id="urlStatus" class="text-blue-700 mt-2"></p>
-    </div>
-
-    <!-- Filter Controls -->
-    <div id="filterContainer" class="mb-6 hidden">
-
-
-      <h2 class="text-xl font-semibold text-blue-800 mb-1">Filters</h2>
-      <p class="text-xs text-blue-600 mb-2">Hold Ctrl (Cmd on Mac) to select multiple options</p>
-
-
-      <div id="filters" class="flex flex-wrap gap-4">
-        <!-- Filter dropdowns will be created dynamically -->
-      </div>
-      <button id="resetFiltersBtn" class="mt-4 px-4 py-2 bg-gray-500 text-white rounded">
-        Reset Filters
-      </button>
-    </div>
-
-    <!-- Column Selector -->
-    <div id="columnContainer" class="mb-6 hidden">
-      <h2 class="text-xl font-semibold text-blue-800 mb-2">Visible Columns</h2>
-      <div id="columnCheckboxes" class="flex flex-wrap gap-4">
-        <!-- Column checkboxes will be created dynamically -->
-      </div>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="bg-white dark:bg-gray-800 rounded-full shadow-lg mb-6 px-6 py-4 flex items-center">
-      <svg class="w-6 h-6 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-      </svg>
-      <input type="text" id="searchInput"
-             class="w-full focus:outline-none text-lg text-blue-900 dark:text-blue-200 placeholder-blue-400 dark:placeholder-blue-500 bg-white dark:bg-gray-700"
-             placeholder="Search records..." disabled />
-    </div>
-
-
-    <!-- Layout and Pagination Controls -->
-    <div id="controlsArea" class="mb-6 hidden">
-      <div class="bg-white rounded-lg shadow-lg p-4 flex flex-wrap items-center justify-between gap-4">
-        <!-- Layout Switcher -->
-        <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-blue-800">Layout:</label>
-          <select id="layoutSelect" class="border border-blue-300 rounded px-2 py-1">
-            <option value="cards">Cards</option>
-            <option value="table">Table</option>
-            <option value="list">List</option>
-            <option value="compact">Compact</option>
-          </select>
-        </div>
-        
-        <!-- Items per page -->
-        <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-blue-800">Items per page:</label>
-          <select id="itemsPerPageSelect" class="border border-blue-300 rounded px-2 py-1">
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-        
-        <!-- Export button -->
-        <button id="exportBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-          Export Results
-        </button>
-      </div>
-
-    </div>
-
-    <!-- Results Area -->
-    <div id="resultsArea" class="mb-10 hidden">
-
-      <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2
-
-      <div class="flex justify-end mb-2">
-        <button id="toggleViewBtn" class="px-4 py-2 bg-blue-500 text-white rounded">
-          Table View
-        </button>
-
-      </div>
-      <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-
-      <!-- Pagination Controls -->
-      <div id="pagination" class="mt-4 flex justify-between items-center gap-2">
-        <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
-          Previous
-  
-        <span id="pageInfo" class="text-blue-700"></span>
-        <div class="flex items-center gap-1">
-          <label for="pageSize" class="text-sm text-blue-700">Per page:</label>
-          <select id="pageSize" class="border border-blue-300 rounded p-1">
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-
-        <button id="nextBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
-          Next
-        </button>
-      </div>
-
-      <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
-
-    </div>
-  </div>
-
-  <!-- Modal for viewing full row -->
-  <div id="rowModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="bg-white rounded-lg p-6 max-h-[90vh] w-full max-w-2xl overflow-y-auto">
-      <h2 id="modalTitle" class="text-xl font-bold mb-4 text-blue-800">Row Details</h2>
-      <table class="min-w-full border border-blue-200" id="modalTable">
-        <tbody id="modalTableBody"></tbody>
-      </table>
-      <div class="flex justify-between mt-4">
-        <button id="modalPrev" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" aria-label="Previous record" tabindex="0">Previous</button>
-        <button id="modalNext" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" aria-label="Next record">Next</button>
-        <button id="modalClose" class="px-4 py-2 bg-gray-500 text-white rounded">Close</button>
-      </div>
-
-    </div>
-  </div>
-
   <script>
     let csvData = [];
     let columns = [];
@@ -606,6 +411,13 @@
         if (columns.length > 0) {
           columnContainer.classList.remove('hidden');
         }
+      }
+
+      // Simple function to highlight search terms
+      function highlightValue(text, term) {
+        if (!term || term.trim() === '') return text;
+        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
       }
 
       // Generate result count text
@@ -1080,15 +892,11 @@
       return result;
     }
 
-    // Display results based on current view mode and pagination
+    // Display results as cards for the current page
+
     function displayResults() {
+      applyViewMode();
       resultsContainer.innerHTML = "";
-      
-      if (currentResults.length === 0) {
-        resultsContainer.innerHTML = '<div class="text-center text-gray-500 py-8">No results found</div>';
-        updatePaginationInfo();
-        return;
-      }
 
       sortResults();
 
@@ -1096,6 +904,14 @@
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
       
+        pageResults.forEach((record, idx) => {
+          const card = document.createElement('div');
+          card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200 cursor-pointer";
+          card.addEventListener('click', () => openModal(startIdx + idx));
+          const list = document.createElement('ul');
+          list.className = "space-y-1";
+        // For each column, display it only if the value is non-empty
+        columns.forEach(col => {
       // Set container class based on layout
       switch (currentLayout) {
         case 'cards':
@@ -1114,9 +930,6 @@
           resultsContainer.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2";
           displayCompactLayout(pageResults);
           break;
-        default:
-          resultsContainer.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6";
-          displayCardsLayout(pageResults);
       }
       
       updatePaginationInfo();
@@ -1126,36 +939,51 @@
       const term = searchInput.value.trim();
       pageResults.forEach(record => {
         const card = document.createElement('div');
+
         card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200";
-        
         const list = document.createElement('ul');
         list.className = "space-y-1";
-        
         // For each column, display it only if the value is non-empty
+        const term = searchInput.value.trim();
         columns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
-          
           const item = document.createElement('li');
-          item.className = "text-sm";
-          
-          const label = document.createElement('span');
-          label.className = "font-medium text-blue-800";
-          label.textContent = col + ': ';
-          
-          const valueSpan = document.createElement('span');
-          valueSpan.innerHTML = highlightValue(String(value), term);
-          
-          item.appendChild(label);
-          item.appendChild(valueSpan);
+          const displayValue = highlightValue(String(value), term);
+
           list.appendChild(item);
         });
         
         card.appendChild(list);
-        card.appendChild(createCopyButton(record, 'absolute top-2 right-2 text-xs text-blue-600 hover:underline'));
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'absolute top-2 right-2 text-xs text-blue-600 hover:underline';
+        copyBtn.addEventListener('click', () => {
+          const rowText = d3.csvFormatRow(columns.map(c => record[c]));
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(rowText);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = rowText;
+            ta.style.position = 'fixed';
+            ta.style.left = OFFSCREEN_POSITION;
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try { 
+              document.execCommand('copy'); 
+            } catch (err) {
+              console.error('Copy operation failed:', err);
+              alert('Failed to copy text. Please try again.');
+            }
+            document.body.removeChild(ta);
+          }
+        });
+        card.appendChild(copyBtn);
+
         resultsContainer.appendChild(card);
-      });
-    }
       });
     }
 
@@ -1389,15 +1217,7 @@
         displayResults();
         saveState();
       }
-    });
 
-    nextBtn.addEventListener('click', () => {
-      const totalPages = Math.ceil(currentResults.length / resultsPerPage);
-      if (currentPage < totalPages) {
-        currentPage++;
-        displayResults();
-        saveState();
-      }
     });
 
 
@@ -1430,40 +1250,8 @@
     });
 
     // Handle search input (debounced)
-    searchInput.addEventListener('input', _.debounce(updateResults, 300));
 
-    // URL loading functionality
-    loadUrlBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      if (!url) {
-        urlStatus.textContent = 'Please enter a valid URL';
-        return;
-      }
-      
-      try {
-        urlStatus.textContent = 'Loading CSV from URL...';
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const csvText = await response.text();
-        
-        // Process the CSV as if it was uploaded
-        if (csvWorker) {
-          csvWorker.postMessage({
-            type: 'parseCSV',
-            data: { csvText, filename: url.split('/').pop() || 'remote.csv' }
-          });
-        } else {
-          fallbackProcessFile(csvText, url.split('/').pop() || 'remote.csv');
-        }
-        
-        urlStatus.textContent = '';
-        urlInput.value = '';
-      } catch (error) {
-        urlStatus.textContent = 'Error loading CSV: ' + error.message;
-      }
-    });
+    searchInput.addEventListener('input', _.debounce(updateResults, 300));
 
     // Layout switcher event listener
     layoutSelect.addEventListener('change', (e) => {
@@ -1547,6 +1335,3 @@
     });
     updateToggle();
 
-  </script>
-</body>
-</html>
