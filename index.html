@@ -243,10 +243,12 @@
           display.id = `display-${field}`;
           display.innerHTML = `<span>${minVal}</span><span>${maxVal}</span>`;
           const updateDisplay = () => {
-            if (parseFloat(minRange.value) > parseFloat(maxRange.value)) {
+            const minValue = parseFloat(minRange.value);
+            const maxValue = parseFloat(maxRange.value);
+            if (minValue > maxValue) {
               maxRange.value = minRange.value;
             }
-            if (parseFloat(maxRange.value) < parseFloat(minRange.value)) {
+            if (maxValue < minValue) {
               minRange.value = maxRange.value;
             }
             display.innerHTML = `<span>${minRange.value}</span><span>${maxRange.value}</span>`;
