@@ -230,8 +230,11 @@
       resultsContainer.appendChild(topSpacer);
       resultsContainer.appendChild(listContainer);
       resultsContainer.appendChild(bottomSpacer);
-      resultsContainer.removeEventListener('scroll', renderVisible);
-      resultsContainer.addEventListener('scroll', renderVisible);
+      // Ensure the scroll event listener is added only once during initialization.
+      if (!resultsContainer.hasScrollListener) {
+        resultsContainer.addEventListener('scroll', renderVisible);
+        resultsContainer.hasScrollListener = true;
+      }
       renderVisible();
     }
 
