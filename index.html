@@ -262,7 +262,12 @@
         const col = btn.dataset.column;
         if (col === sortColumn) {
           btn.classList.add('bg-blue-100');
-          btn.innerHTML = `${col} ${sortAscending ? '▲' : '▼'}`;
+          btn.textContent = col;
+          const sortIndicator = document.createElement('span');
+          sortIndicator.textContent = sortAscending ? '▲' : '▼';
+          sortIndicator.className = "ml-1"; // Optional: Add margin for spacing
+          btn.appendChild(sortIndicator);
+          btn.setAttribute('aria-label', `${col} sorted ${sortAscending ? 'ascending' : 'descending'}`);
         } else {
           btn.classList.remove('bg-blue-100');
           btn.textContent = col;
