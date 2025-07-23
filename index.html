@@ -149,10 +149,12 @@
 
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
 
-
-      <div id="sortContainer" class="mb-4 flex flex-wrap gap-2"></div>
-      <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div
-
+      <div class="flex justify-end mb-2">
+        <button id="toggleViewBtn" class="px-4 py-2 bg-blue-500 text-white rounded">
+          Table View
+        </button>
+      </div>
+      <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
       <!-- Pagination Controls -->
       <div id="pagination" class="mt-4 flex justify-between items-center gap-2">
@@ -209,6 +211,7 @@
     let selectedColumns = [];
     let fuse = null;
     let currentPage = 1;
+
     let resultsPerPage = 25;
     let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
     let csvWorker = null;
@@ -222,6 +225,7 @@
     const resultsArea = document.getElementById('resultsArea');
 
     const resultsContainer = document.getElementById('resultsContainer');
+    const toggleViewBtn = document.getElementById('toggleViewBtn');
     const resultCount = document.getElementById('resultCount');
 
     const filterContainer = document.getElementById('filterContainer');
@@ -322,6 +326,14 @@
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     }
 
+
+    // Toggle between card and table views
+    toggleViewBtn.addEventListener('click', () => {
+      viewMode = viewMode === 'card' ? 'table' : 'card';
+      toggleViewBtn.textContent = viewMode === 'card' ? 'Table View' : 'Card View';
+      resultsContainer.className = viewMode === 'card' ? cardContainerClass : tableContainerClass;
+      renderResults();
+    });
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -531,7 +543,7 @@
           // Set initial results to all records and display first page
           currentResults = csvData;
           currentPage = 1;
-          displayResults();
+          renderResults();
         } catch (error) {
           console.error("CSV parse error:", error);
           fileStatus.textContent = 'Error parsing CSV: ' + error.message;
@@ -849,6 +861,7 @@
           }
         }
       });
+
       worker.postMessage({ type: 'search', term, filters });
     }
 
@@ -884,6 +897,7 @@
       }
       result += escapeHtml(str.slice(lastIndex));
       return result;
+
     }
 
     function displayResults() {
@@ -1123,24 +1137,69 @@
       nextBtn.disabled = currentPage >= totalPages;
     }
 
-    function renderVisible() {
-      const scrollTop = resultsContainer.scrollTop;
-      const containerHeight = resultsContainer.clientHeight;
-      let start = Math.floor(scrollTop / approxHeight) - BUFFER;
-      if (start < 0) start = 0;
-      let end = start + Math.ceil(containerHeight / approxHeight) + BUFFER * 2;
-      if (end > currentResults.length) end = currentResults.length;
-      topSpacer.style.height = start * approxHeight + 'px';
-      bottomSpacer.style.height = (currentResults.length - end) * approxHeight + 'px';
-      listContainer.innerHTML = '';
-      for (let i = start; i < end; i++) {
-        listContainer.appendChild(createCard(currentResults[i]));
+
+    // Display results as a table for the current page
+    function displayTableResults() {
+      resultsContainer.innerHTML = "";
+      const startIdx = (currentPage - 1) * resultsPerPage;
+      const endIdx = startIdx + resultsPerPage;
+      const pageResults = currentResults.slice(startIdx, endIdx);
+
+      const table = document.createElement('table');
+      table.className = 'min-w-full divide-y divide-blue-200 border';
+      const thead = document.createElement('thead');
+      thead.className = 'bg-blue-50';
+      const headerRow = document.createElement('tr');
+      columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        th.className = 'px-4 py-2 text-left text-blue-700';
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      pageResults.forEach(record => {
+        const row = document.createElement('tr');
+        columns.forEach(col => {
+          const td = document.createElement('td');
+          td.textContent = record[col] || '';
+          td.className = 'px-4 py-2 border-t';
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      resultsContainer.appendChild(table);
+
+      const totalPages = Math.ceil(currentResults.length / resultsPerPage);
+      resultCount.textContent = generateResultCountText(currentResults.length);
+      pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    // Render results based on current view mode
+    function renderResults() {
+      if (viewMode === 'table') {
+        displayTableResults();
+      } else {
+        displayResults();
       }
-      if (listContainer.firstChild) {
-        approxHeight = listContainer.firstChild.getBoundingClientRect().height;
+    }
+
+    // Pagination controls
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderResults();
+
       }
 
     });
+
 
     // Change page size
     pageSizeSelect.addEventListener('change', () => {
@@ -1152,6 +1211,7 @@
       } else {
         alert("Please select a page size between 1 and 1000.");
         pageSizeSelect.value = resultsPerPage; // Reset to the current valid value
+
       }
     });
 
