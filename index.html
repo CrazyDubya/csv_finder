@@ -272,7 +272,7 @@
 
     function sortResults() {
       if (!sortColumn) return;
-      currentResults.sort((a, b) => {
+      currentResults = currentResults.slice().sort((a, b) => {
         const valA = String(a[sortColumn] || '').toLowerCase();
         const valB = String(b[sortColumn] || '').toLowerCase();
         if (valA < valB) return sortAscending ? -1 : 1;
