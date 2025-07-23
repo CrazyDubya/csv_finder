@@ -240,7 +240,15 @@
             edit.style.display = 'none';
             input.focus();
             const save = () => {
-              const newVal = input.value.trim() || field;
+              const trimmedValue = input.value.trim();
+              if (trimmedValue === "") {
+                const confirmClear = window.confirm("Are you sure you want to clear the custom name? This will revert to the original field name.");
+                if (!confirmClear) {
+                  input.focus();
+                  return;
+                }
+              }
+              const newVal = trimmedValue || field;
               columnNames[field] = newVal;
               label.textContent = newVal;
               input.replaceWith(label);
