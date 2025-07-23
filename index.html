@@ -144,6 +144,22 @@
         </button>
       </div>
       <div id="resultCount" class="mt-4 text-right text-sm text-blue-700"></div>
+
+    </div>
+  </div>
+
+  <!-- Modal for viewing full row -->
+  <div id="rowModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="bg-white rounded-lg p-6 max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+      <h2 id="modalTitle" class="text-xl font-bold mb-4 text-blue-800">Row Details</h2>
+      <table class="min-w-full border border-blue-200" id="modalTable">
+        <tbody id="modalTableBody"></tbody>
+      </table>
+      <div class="flex justify-between mt-4">
+        <button id="modalPrev" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" aria-label="Previous record" tabindex="0">Previous</button>
+        <button id="modalNext" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" aria-label="Next record">Next</button>
+        <button id="modalClose" class="px-4 py-2 bg-gray-500 text-white rounded">Close</button>
+      </div>
     </div>
   </div>
 
@@ -679,7 +695,6 @@
       return result;
     }
 
-    // Display results in different layouts
     function displayResults() {
       resultsContainer.innerHTML = "";
       sortResults();
@@ -687,6 +702,14 @@
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
       
+        pageResults.forEach((record, idx) => {
+          const card = document.createElement('div');
+          card.className = "bg-white shadow-md rounded-lg p-4 border border-blue-200 cursor-pointer";
+          card.addEventListener('click', () => openModal(startIdx + idx));
+          const list = document.createElement('ul');
+          list.className = "space-y-1";
+        // For each column, display it only if the value is non-empty
+        columns.forEach(col => {
       // Set container class based on layout
       switch (currentLayout) {
         case 'cards':
@@ -719,7 +742,6 @@
         list.className = "space-y-1";
 
         selectedColumns.forEach(col => {
-
 
           const value = record[col] || '';
           if (value.trim() === "") return;
@@ -920,6 +942,7 @@
       if (listContainer.firstChild) {
         approxHeight = listContainer.firstChild.getBoundingClientRect().height;
       }
+
       resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? '' : 's'}.`;
     }
     
@@ -989,6 +1012,7 @@
       });
       return [header, ...rows].join('\n');
     }
+
   </script>
 </body>
 </html>
