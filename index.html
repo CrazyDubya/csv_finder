@@ -259,9 +259,9 @@
         checkbox.checked = true;
         checkbox.addEventListener('change', () => {
           if (checkbox.checked) {
-            if (!selectedColumns.includes(field)) selectedColumns.push(field);
+            selectedColumns.add(field);
           } else {
-            selectedColumns = selectedColumns.filter(c => c !== field);
+            selectedColumns.delete(field);
           }
           displayResults();
         });
