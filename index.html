@@ -249,7 +249,16 @@
               displayResults();
             };
             input.addEventListener('blur', save);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); }});
+            input.addEventListener('keydown', e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                input.replaceWith(label);
+                edit.style.display = 'inline';
+              }
+            });
           });
           labelWrapper.appendChild(label);
           labelWrapper.appendChild(edit);
