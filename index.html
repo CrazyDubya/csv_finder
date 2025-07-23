@@ -228,6 +228,8 @@
           const edit = document.createElement('span');
           edit.className = 'cursor-pointer text-xs text-gray-500 ml-1';
           edit.textContent = '✏';
+          edit.setAttribute('role', 'button');
+          edit.setAttribute('aria-label', 'Edit column name');
           edit.addEventListener('click', () => {
             const input = document.createElement('input');
             input.type = 'text';
