@@ -191,8 +191,8 @@
           // Build dynamic filter dropdowns for each column that has at least one non-empty value
           buildFilters();
           currentResults = csvData;
-          updateResults();
           currentPage = savedState.page || 1;
+          updateResults();
           displayResults();
           saveState();
         } catch (error) {
