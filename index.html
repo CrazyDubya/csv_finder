@@ -78,6 +78,14 @@
       </div>
     </div>
 
+    <!-- Column Selector -->
+    <div id="columnContainer" class="mb-6 hidden">
+      <h2 class="text-xl font-semibold text-blue-800 mb-2">Visible Columns</h2>
+      <div id="columnCheckboxes" class="flex flex-wrap gap-4">
+        <!-- Column checkboxes will be created dynamically -->
+      </div>
+    </div>
+
     <!-- Search Bar -->
     <div class="bg-white rounded-full shadow-lg mb-6 px-6 py-4 flex items-center">
       <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,6 +152,7 @@
   <script>
     let csvData = [];
     let columns = [];
+    let selectedColumns = [];
     let fuse = null;
     let currentResults = [];
     let currentPage = 1;
@@ -255,6 +264,7 @@
       if (file) processFile(file);
     });
 
+
     // Process CSV file using web worker for better performance
       function processFile(file) {
         // Reset previous data and show spinner
@@ -270,6 +280,7 @@
         
         const reader = new FileReader();
         reader.onload = function(e) {
+          
           const csvText = e.target.result;
           
           if (csvWorker) {
@@ -333,6 +344,13 @@
             fileStatus.textContent = 'Error parsing CSV: ' + error.message;
             hideSpinner();
           }
+
+          // Determine columns dynamically from the CSV header
+          columns = Object.keys(csvData[0] || {});
+          selectedColumns = [...columns];
+          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
+          // For now, we simply rely on per-record checking.
+
         }, 50);
       }
 
@@ -412,7 +430,12 @@
           });
         } else {
           buildFilters();
+
+          // Build column visibility checkboxes
+          buildColumnSelectors();
+
           buildSortButtons();
+
           // Set initial results to all records and display first page
           currentResults = csvData;
           currentPage = 1;
@@ -561,6 +584,7 @@
           return 0;
         }
       });
+
     }
 
     // Update results based on search input and filter selections
@@ -675,8 +699,10 @@
         card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200 hover:shadow-lg transition-shadow";
         const list = document.createElement('ul');
         list.className = "space-y-1";
-        
-        columns.forEach(col => {
+
+        selectedColumns.forEach(col => {
+
+
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
