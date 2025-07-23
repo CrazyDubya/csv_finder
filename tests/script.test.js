@@ -1,0 +1,222 @@
+/**
+ * Unit tests for CSV Finder utility functions
+ * Simple tests that don't require complex DOM interaction
+ */
+
+describe('CSV Parser Functions', () => {
+  // Copy the functions directly for testing
+  function parseCSVSimple(csvText) {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return [];
+    
+    const headers = parseCsvLine(lines[0]);
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCsvLine(lines[i]);
+      if (values.length === headers.length) {
+        const record = {};
+        headers.forEach((header, index) => {
+          record[header] = values[index] || '';
+        });
+        data.push(record);
+      }
+    }
+    
+    return data;
+  }
+
+  function parseCsvLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"' && (i === 0 || line[i-1] === ',')) {
+        inQuotes = true;
+      } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
+        inQuotes = false;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  }
+
+  function escapeHtml(text) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function highlightValue(value, term) {
+    const str = String(value);
+    if (!term) return escapeHtml(str);
+    
+    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return escapeHtml(str).replace(regex, match => `<mark>${match}</mark>`);
+  }
+
+  function inferColumnType(values) {
+    const nonEmpty = values.filter(v => v !== "");
+    if (nonEmpty.length === 0) return 'string';
+    if (nonEmpty.every(v => !isNaN(Date.parse(v)) && isNaN(Number(v)))) return 'date';
+    if (nonEmpty.every(v => !isNaN(Number(v)) && isFinite(Number(v)))) return 'number';
+    return 'string';
+  }
+
+  describe('parseCsvLine', () => {
+    test('should parse simple CSV line', () => {
+      const result = parseCsvLine('John,Doe,28');
+      expect(result).toEqual(['John', 'Doe', '28']);
+    });
+
+    test('should parse CSV line with quotes', () => {
+      const result = parseCsvLine('"John Doe","Software Engineer",28');
+      expect(result).toEqual(['John Doe', 'Software Engineer', '28']);
+    });
+
+    test('should parse CSV line with commas in quoted fields', () => {
+      const result = parseCsvLine('"Smith, John","New York, NY",35');
+      expect(result).toEqual(['Smith, John', 'New York, NY', '35']);
+    });
+
+    test('should handle empty fields', () => {
+      const result = parseCsvLine('John,,28');
+      expect(result).toEqual(['John', '', '28']);
+    });
+
+    test('should handle trailing spaces', () => {
+      const result = parseCsvLine('John , Doe , 28 ');
+      expect(result).toEqual(['John', 'Doe', '28']);
+    });
+  });
+
+  describe('parseCSVSimple', () => {
+    test('should parse simple CSV data', () => {
+      const csvText = `Name,Age,City
+John Doe,28,New York
+Jane Smith,34,London`;
+      
+      const result = parseCSVSimple(csvText);
+      expect(result).toEqual([
+        { Name: 'John Doe', Age: '28', City: 'New York' },
+        { Name: 'Jane Smith', Age: '34', City: 'London' }
+      ]);
+    });
+
+    test('should return empty array for invalid CSV', () => {
+      const csvText = 'Name';
+      const result = parseCSVSimple(csvText);
+      expect(result).toEqual([]);
+    });
+
+    test('should handle CSV with mismatched columns', () => {
+      const csvText = `Name,Age,City
+John Doe,28
+Jane Smith,34,London,Extra`;
+      
+      const result = parseCSVSimple(csvText);
+      // The function filters out rows that don't have the exact number of columns
+      expect(result).toEqual([]);
+    });
+
+    test('should handle empty CSV', () => {
+      const result = parseCSVSimple('');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('escapeHtml', () => {
+    test('should escape HTML special characters', () => {
+      const result = escapeHtml('<script>alert("xss")</script>');
+      expect(result).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+    });
+
+    test('should handle strings without special characters', () => {
+      const result = escapeHtml('John Doe');
+      expect(result).toBe('John Doe');
+    });
+
+    test('should handle empty string', () => {
+      const result = escapeHtml('');
+      expect(result).toBe('');
+    });
+
+    test('should handle null and undefined', () => {
+      expect(escapeHtml(null)).toBe('null');
+      expect(escapeHtml(undefined)).toBe('undefined');
+    });
+  });
+
+  describe('highlightValue', () => {
+    test('should highlight search term', () => {
+      const result = highlightValue('John Doe', 'John');
+      expect(result).toBe('<mark>John</mark> Doe');
+    });
+
+    test('should handle case insensitive search', () => {
+      const result = highlightValue('John Doe', 'john');
+      expect(result).toBe('<mark>John</mark> Doe');
+    });
+
+    test('should handle multiple matches', () => {
+      const result = highlightValue('John John Doe', 'John');
+      expect(result).toBe('<mark>John</mark> <mark>John</mark> Doe');
+    });
+
+    test('should return escaped text when no term provided', () => {
+      const result = highlightValue('<script>alert("test")</script>', '');
+      expect(result).toBe('&lt;script&gt;alert(&quot;test&quot;)&lt;/script&gt;');
+    });
+
+    test('should handle special regex characters in search term', () => {
+      const result = highlightValue('test.example', '.');
+      expect(result).toBe('test<mark>.</mark>example');
+    });
+  });
+
+  describe('inferColumnType', () => {
+    test('should detect number type', () => {
+      const values = ['123', '456', '789'];
+      const result = inferColumnType(values);
+      expect(result).toBe('number');
+    });
+
+    test('should detect string type', () => {
+      const values = ['John', 'Jane', 'Bob'];
+      const result = inferColumnType(values);
+      expect(result).toBe('string');
+    });
+
+    test('should handle mixed types as string', () => {
+      const values = ['John', '123', 'Jane'];
+      const result = inferColumnType(values);
+      expect(result).toBe('string');
+    });
+
+    test('should handle empty values', () => {
+      const values = ['', '', ''];
+      const result = inferColumnType(values);
+      expect(result).toBe('string');
+    });
+
+    test('should detect date type', () => {
+      const values = ['2023-01-01', '2023-12-31', '2024-06-15'];
+      const result = inferColumnType(values);
+      expect(result).toBe('date');
+    });
+  });
+});

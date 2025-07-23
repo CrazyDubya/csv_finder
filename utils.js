@@ -1,7 +1,7 @@
 // Simple utilities to replace Lodash
 (function() {
   'use strict';
-  
+
   function debounce(func, wait, immediate) {
     let timeout;
     return function executedFunction(...args) {
@@ -15,7 +15,7 @@
       if (callNow) func.apply(this, args);
     };
   }
-  
+
   function throttle(func, limit) {
     let inThrottle;
     return function(...args) {
@@ -24,9 +24,9 @@
         inThrottle = true;
         setTimeout(() => inThrottle = false, limit);
       }
-    }
+    };
   }
-  
+
   function clone(obj) {
     if (obj === null || typeof obj !== 'object') return obj;
     if (obj instanceof Date) return new Date(obj);
@@ -39,7 +39,7 @@
       return cloned;
     }
   }
-  
+
   // Export for global use
   if (typeof window !== 'undefined') {
     window._ = window._ || {};
@@ -47,7 +47,7 @@
     window._.throttle = throttle;
     window._.clone = clone;
   }
-  
+
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { debounce, throttle, clone };
   }

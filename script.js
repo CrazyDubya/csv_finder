@@ -8,11 +8,11 @@ let selectedColumns = [];
 let currentPage = 1;
 let resultsPerPage = 25;
 let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
-let csvWorker = null;
-let filterCache = {};
+// let csvWorker = null; // Commented out - not used in current implementation
+// let filterCache = {}; // Commented out - not used in current implementation
 let columnTypes = {};
-let sortColumn = null;
-let sortAscending = true;
+// let sortColumn = null; // Commented out - not implemented yet
+// let sortAscending = true; // Commented out - not implemented yet
 
 // DOM Elements
 const dragArea = document.getElementById('dragArea');
@@ -21,7 +21,7 @@ const searchInput = document.getElementById('searchInput');
 const fileStatus = document.getElementById('fileStatus');
 const resultsArea = document.getElementById('resultsArea');
 const resultsContainer = document.getElementById('resultsContainer');
-const toggleViewBtn = document.getElementById('toggleViewBtn');
+// const toggleViewBtn = document.getElementById('toggleViewBtn'); // Commented out - not used
 const resultCount = document.getElementById('resultCount');
 const filterContainer = document.getElementById('filterContainer');
 const filtersDiv = document.getElementById('filters');
@@ -58,8 +58,8 @@ function hideSpinner() {
 
 // Initialize the application
 function initApp() {
-  csvWorker = null; // Disable worker for now - use fallback
-  
+  // csvWorker = null; // Disable worker for now - use fallback
+
   // Load saved state
   try {
     const savedState = JSON.parse(localStorage.getItem('csvViewerState') || '{}');
@@ -77,7 +77,7 @@ function initApp() {
 // File upload handling
 function setupFileHandlers() {
   if (!dragArea || !fileInput) return;
-  
+
   // Prevent default drag behaviors
   ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dragArea.addEventListener(eventName, e => {
@@ -85,17 +85,17 @@ function setupFileHandlers() {
       e.stopPropagation();
     });
   });
-  
+
   // Highlight drag area when file is over it
   ['dragenter', 'dragover'].forEach(eventName => {
     dragArea.addEventListener(eventName, () => dragArea.classList.add('dragover'));
   });
-  
+
   // Remove highlight on dragleave/drop
   ['dragleave', 'drop'].forEach(eventName => {
     dragArea.addEventListener(eventName, () => dragArea.classList.remove('dragover'));
   });
-  
+
   // Handle file drop
   dragArea.addEventListener('drop', e => {
     const file = e.dataTransfer.files[0];
@@ -105,10 +105,10 @@ function setupFileHandlers() {
       if (fileStatus) fileStatus.textContent = 'Please upload a valid CSV file.';
     }
   });
-  
+
   // Open file dialog on click
   dragArea.addEventListener('click', () => fileInput.click());
-  
+
   fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if (file) processFile(file);
@@ -119,26 +119,26 @@ function setupFileHandlers() {
 function processFile(file) {
   csvData = [];
   currentResults = [];
-  filterCache = {};
-  
+  // filterCache = {}; // Reset filter cache if needed in future
+
   if (fileStatus) fileStatus.textContent = 'Reading file...';
   if (searchInput) searchInput.disabled = true;
   if (resultsArea) resultsArea.classList.add('hidden');
   if (controlsArea) controlsArea.classList.add('hidden');
   if (filterContainer) filterContainer.classList.add('hidden');
   showSpinner();
-  
+
   const reader = new FileReader();
   reader.onload = function(e) {
     const csvText = e.target.result;
     fallbackProcessFile(csvText, file.name);
   };
-  
+
   reader.onerror = function(error) {
     if (fileStatus) fileStatus.textContent = 'Error reading file: ' + error.message;
     hideSpinner();
   };
-  
+
   reader.readAsText(file);
 }
 
@@ -146,10 +146,10 @@ function processFile(file) {
 function parseCSVSimple(csvText) {
   const lines = csvText.trim().split('\n');
   if (lines.length < 2) return [];
-  
+
   const headers = parseCsvLine(lines[0]);
   const data = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvLine(lines[i]);
     if (values.length === headers.length) {
@@ -160,7 +160,7 @@ function parseCSVSimple(csvText) {
       data.push(record);
     }
   }
-  
+
   return data;
 }
 
@@ -169,10 +169,10 @@ function parseCsvLine(line) {
   const result = [];
   let current = '';
   let inQuotes = false;
-  
+
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-    
+
     if (char === '"' && (i === 0 || line[i-1] === ',')) {
       inQuotes = true;
     } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
@@ -184,7 +184,7 @@ function parseCsvLine(line) {
       current += char;
     }
   }
-  
+
   result.push(current.trim());
   return result;
 }
@@ -199,16 +199,16 @@ function fallbackProcessFile(csvText, filename) {
       } else {
         parsedData = parseCSVSimple(csvText);
       }
-      
+
       if (parsedData.length === 0) {
         if (fileStatus) fileStatus.textContent = 'No records found in the CSV.';
         hideSpinner();
         return;
       }
-      
+
       columns = Object.keys(parsedData[0] || {});
       initColumnNames();
-      
+
       // Initialize Fuse.js if available
       if (typeof Fuse !== 'undefined') {
         fuse = new Fuse(parsedData, {
@@ -217,7 +217,7 @@ function fallbackProcessFile(csvText, filename) {
           distance: 100
         });
       }
-      
+
       handleCSVParsed({
         csvData: parsedData,
         columns,
@@ -236,7 +236,7 @@ function fallbackProcessFile(csvText, filename) {
 function handleCSVParsed(data) {
   csvData = data.csvData;
   columns = data.columns;
-  
+
   // Initialize Fuse.js for search if available
   if (typeof Fuse !== 'undefined') {
     fuse = new Fuse(csvData, {
@@ -247,41 +247,36 @@ function handleCSVParsed(data) {
   } else {
     fuse = null;
   }
-  
+
   if (fileStatus) fileStatus.textContent = `Loaded ${data.totalRows} rows successfully.`;
   if (searchInput) searchInput.disabled = false;
   if (resultsArea) resultsArea.classList.remove('hidden');
   if (controlsArea) controlsArea.classList.remove('hidden');
-  
+
   buildFilters();
   buildColumnSelectors();
-  
+
   currentResults = csvData;
   currentPage = 1;
   displayResults();
-  
+
   hideSpinner();
 }
 
 // Infer column type for filtering
 function inferColumnType(values) {
-  const nonEmpty = values.filter(v => v !== "");
+  const nonEmpty = values.filter(v => v !== '');
   if (nonEmpty.length === 0) return 'string';
   if (nonEmpty.every(v => !isNaN(Date.parse(v)) && isNaN(Number(v)))) return 'date';
   if (nonEmpty.every(v => !isNaN(Number(v)) && isFinite(Number(v)))) return 'number';
   return 'string';
 }
 
-function formatDate(d) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 // Build filter controls
 function buildFilters() {
   if (!filtersDiv) return;
-  
-  filtersDiv.innerHTML = "";
+
+  filtersDiv.innerHTML = '';
   columns.forEach(field => {
     const values = csvData.map(d => String(d[field] || '').trim());
     const nonEmptyVals = values.filter(v => v !== '');
@@ -289,10 +284,10 @@ function buildFilters() {
 
     const type = inferColumnType(values);
     columnTypes[field] = type;
-    
+
     const wrapper = document.createElement('div');
     wrapper.className = 'flex flex-col mb-4';
-    
+
     const label = document.createElement('label');
     label.className = 'text-blue-800 text-sm font-medium mb-1';
     label.textContent = columnNames[field] || field;
@@ -302,27 +297,27 @@ function buildFilters() {
       const uniqueVals = Array.from(new Set(nonEmptyVals)).sort();
       const select = document.createElement('select');
       select.id = `filter-${field}`;
-      select.className = "border border-blue-300 rounded p-2";
-      
+      select.className = 'border border-blue-300 rounded p-2';
+
       const defaultOption = document.createElement('option');
-      defaultOption.value = "";
-      defaultOption.textContent = "All";
+      defaultOption.value = '';
+      defaultOption.textContent = 'All';
       select.appendChild(defaultOption);
-      
+
       uniqueVals.forEach(val => {
         const opt = document.createElement('option');
         opt.value = val;
         opt.textContent = val;
         select.appendChild(opt);
       });
-      
+
       select.addEventListener('change', updateResults);
       wrapper.appendChild(select);
     }
-    
+
     filtersDiv.appendChild(wrapper);
   });
-  
+
   if (columns.length > 0 && filterContainer) {
     filterContainer.classList.remove('hidden');
   }
@@ -332,14 +327,14 @@ function buildFilters() {
 function buildColumnSelectors() {
   const columnCheckboxes = document.getElementById('columnCheckboxes');
   if (!columnCheckboxes) return;
-  
+
   columnCheckboxes.innerHTML = '';
   selectedColumns = [...columns];
-  
+
   columns.forEach(col => {
     const wrapper = document.createElement('div');
     wrapper.className = 'flex items-center mb-2';
-    
+
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `col-${col}`;
@@ -354,17 +349,17 @@ function buildColumnSelectors() {
       }
       displayResults();
     });
-    
+
     const label = document.createElement('label');
     label.htmlFor = checkbox.id;
     label.textContent = col;
     label.className = 'ml-2 text-sm';
-    
+
     wrapper.appendChild(checkbox);
     wrapper.appendChild(label);
     columnCheckboxes.appendChild(wrapper);
   });
-  
+
   if (columns.length > 0 && columnContainer) {
     columnContainer.classList.remove('hidden');
   }
@@ -373,11 +368,11 @@ function buildColumnSelectors() {
 // Update results based on search and filters
 function updateResults() {
   if (!searchInput) return;
-  
+
   const term = searchInput.value.trim();
   let filtered;
-  
-  if (term === "") {
+
+  if (term === '') {
     filtered = csvData;
   } else if (fuse) {
     filtered = fuse.search(term).map(r => r.item);
@@ -389,7 +384,7 @@ function updateResults() {
       });
     });
   }
-  
+
   // Apply filters
   columns.forEach(field => {
     const select = document.getElementById(`filter-${field}`);
@@ -413,7 +408,7 @@ function escapeHtml(text) {
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#39;'
+    '\'': '&#39;'
   };
   return String(text).replace(/[&<>"']/g, m => map[m]);
 }
@@ -422,7 +417,7 @@ function escapeHtml(text) {
 function highlightValue(value, term) {
   const str = String(value);
   if (!term) return escapeHtml(str);
-  
+
   const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
   return escapeHtml(str).replace(regex, match => `<mark>${match}</mark>`);
 }
@@ -440,63 +435,63 @@ function displayResults() {
   const startIdx = (currentPage - 1) * resultsPerPage;
   const endIdx = startIdx + resultsPerPage;
   const pageResults = currentResults.slice(startIdx, endIdx);
-  
+
   // Set container class based on layout
   switch (currentLayout) {
-    case 'cards':
-      resultsContainer.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6";
-      displayCardsLayout(pageResults);
-      break;
-    case 'table':
-      resultsContainer.className = "overflow-x-auto";
-      displayTableLayout(pageResults);
-      break;
-    case 'list':
-      resultsContainer.className = "space-y-2";
-      displayListLayout(pageResults);
-      break;
-    case 'compact':
-      resultsContainer.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2";
-      displayCompactLayout(pageResults);
-      break;
-    default:
-      resultsContainer.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6";
-      displayCardsLayout(pageResults);
+  case 'cards':
+    resultsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+    displayCardsLayout(pageResults);
+    break;
+  case 'table':
+    resultsContainer.className = 'overflow-x-auto';
+    displayTableLayout(pageResults);
+    break;
+  case 'list':
+    resultsContainer.className = 'space-y-2';
+    displayListLayout(pageResults);
+    break;
+  case 'compact':
+    resultsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2';
+    displayCompactLayout(pageResults);
+    break;
+  default:
+    resultsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+    displayCardsLayout(pageResults);
   }
-  
+
   updatePaginationInfo();
 }
 
 function displayCardsLayout(pageResults) {
   const term = searchInput ? searchInput.value.trim() : '';
   resultsContainer.innerHTML = '';
-  
+
   pageResults.forEach(record => {
     const card = document.createElement('div');
-    card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200";
-    
+    card.className = 'relative bg-white shadow-md rounded-lg p-4 border border-blue-200';
+
     const list = document.createElement('ul');
-    list.className = "space-y-1";
-    
+    list.className = 'space-y-1';
+
     columns.forEach(col => {
       const value = record[col] || '';
-      if (value.trim() === "") return;
-      
+      if (value.trim() === '') return;
+
       const item = document.createElement('li');
-      item.className = "text-sm";
-      
+      item.className = 'text-sm';
+
       const label = document.createElement('span');
-      label.className = "font-medium text-blue-800";
+      label.className = 'font-medium text-blue-800';
       label.textContent = (columnNames[col] || col) + ': ';
-      
+
       const valueSpan = document.createElement('span');
       valueSpan.innerHTML = highlightValue(String(value), term);
-      
+
       item.appendChild(label);
       item.appendChild(valueSpan);
       list.appendChild(item);
     });
-    
+
     card.appendChild(list);
     card.appendChild(createCopyButton(record, 'absolute top-2 right-2 text-xs text-blue-600 hover:underline'));
     resultsContainer.appendChild(card);
@@ -506,53 +501,53 @@ function displayCardsLayout(pageResults) {
 function displayTableLayout(pageResults) {
   resultsContainer.innerHTML = '';
   const table = document.createElement('table');
-  table.className = "min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden";
-  
+  table.className = 'min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden';
+
   // Create header
   const thead = document.createElement('thead');
-  thead.className = "bg-blue-50";
+  thead.className = 'bg-blue-50';
   const headerRow = document.createElement('tr');
-  
+
   columns.forEach(col => {
     const th = document.createElement('th');
-    th.className = "px-4 py-2 text-left text-sm font-medium text-blue-800 border-b";
+    th.className = 'px-4 py-2 text-left text-sm font-medium text-blue-800 border-b';
     th.textContent = columnNames[col] || col;
     headerRow.appendChild(th);
   });
-  
+
   const actionsHeader = document.createElement('th');
-  actionsHeader.className = "px-4 py-2 text-left text-sm font-medium text-blue-800 border-b";
-  actionsHeader.textContent = "Actions";
+  actionsHeader.className = 'px-4 py-2 text-left text-sm font-medium text-blue-800 border-b';
+  actionsHeader.textContent = 'Actions';
   headerRow.appendChild(actionsHeader);
-  
+
   thead.appendChild(headerRow);
   table.appendChild(thead);
-  
+
   // Create body
   const tbody = document.createElement('tbody');
   const term = searchInput ? searchInput.value.trim() : '';
-  
+
   pageResults.forEach((record, index) => {
     const row = document.createElement('tr');
-    row.className = index % 2 === 0 ? "bg-white" : "bg-gray-50";
-    
+    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.className = "px-4 py-2 text-sm border-b max-w-xs truncate";
+      td.className = 'px-4 py-2 text-sm border-b max-w-xs truncate';
       const value = record[col] || '';
       td.innerHTML = highlightValue(String(value), term);
       td.title = String(value);
       row.appendChild(td);
     });
-    
+
     const actionsCell = document.createElement('td');
-    actionsCell.className = "px-4 py-2 text-sm border-b";
+    actionsCell.className = 'px-4 py-2 text-sm border-b';
     actionsCell.appendChild(createCopyButton(record, 'text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600'));
     row.appendChild(actionsCell);
-    
+
     tbody.appendChild(row);
   });
-  
+
   table.appendChild(tbody);
   resultsContainer.appendChild(table);
 }
@@ -560,30 +555,30 @@ function displayTableLayout(pageResults) {
 function displayListLayout(pageResults) {
   resultsContainer.innerHTML = '';
   const term = searchInput ? searchInput.value.trim() : '';
-  
+
   pageResults.forEach(record => {
     const item = document.createElement('div');
-    item.className = "bg-white p-3 rounded border border-gray-200 hover:bg-gray-50";
-    
+    item.className = 'bg-white p-3 rounded border border-gray-200 hover:bg-gray-50';
+
     const content = document.createElement('div');
-    content.className = "flex justify-between items-start";
-    
+    content.className = 'flex justify-between items-start';
+
     const details = document.createElement('div');
-    details.className = "flex-1";
-    
+    details.className = 'flex-1';
+
     const mainInfo = [];
     columns.slice(0, 3).forEach(col => {
       const value = record[col] || '';
-      if (value.trim() !== "") {
+      if (value.trim() !== '') {
         const displayValue = highlightValue(String(value), term);
         mainInfo.push(`<span class="font-medium text-blue-800">${columnNames[col] || col}:</span> ${displayValue}`);
       }
     });
-    
+
     details.innerHTML = mainInfo.join(' • ');
     content.appendChild(details);
     content.appendChild(createCopyButton(record, 'text-xs text-blue-600 hover:underline'));
-    
+
     item.appendChild(content);
     resultsContainer.appendChild(item);
   });
@@ -592,38 +587,38 @@ function displayListLayout(pageResults) {
 function displayCompactLayout(pageResults) {
   resultsContainer.innerHTML = '';
   const term = searchInput ? searchInput.value.trim() : '';
-  
+
   pageResults.forEach(record => {
     const card = document.createElement('div');
-    card.className = "relative bg-white p-2 rounded border border-gray-200 text-sm hover:shadow-md transition-shadow";
-    
+    card.className = 'relative bg-white p-2 rounded border border-gray-200 text-sm hover:shadow-md transition-shadow';
+
     const primaryField = columns[0];
     const primaryValue = record[primaryField] || '';
-    
-    if (primaryValue.trim() !== "") {
+
+    if (primaryValue.trim() !== '') {
       const title = document.createElement('div');
-      title.className = "font-medium text-blue-800 truncate";
+      title.className = 'font-medium text-blue-800 truncate';
       title.innerHTML = highlightValue(String(primaryValue), term);
       title.title = String(primaryValue);
       card.appendChild(title);
     }
-    
+
     const secondaryInfo = [];
     columns.slice(1, 3).forEach(col => {
       const value = record[col] || '';
-      if (value.trim() !== "") {
+      if (value.trim() !== '') {
         secondaryInfo.push(String(value));
       }
     });
-    
+
     if (secondaryInfo.length > 0) {
       const subtitle = document.createElement('div');
-      subtitle.className = "text-gray-600 text-xs truncate mt-1";
+      subtitle.className = 'text-gray-600 text-xs truncate mt-1';
       subtitle.textContent = secondaryInfo.join(' • ');
       subtitle.title = secondaryInfo.join(' • ');
       card.appendChild(subtitle);
     }
-    
+
     card.appendChild(createCopyButton(record, 'absolute top-1 right-1 text-xs text-gray-400 hover:text-blue-600'));
     resultsContainer.appendChild(card);
   });
@@ -636,7 +631,7 @@ function createCopyButton(record, className = 'absolute top-2 right-2 text-xs te
   copyBtn.className = className;
   copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    
+
     let rowText;
     if (typeof d3 !== 'undefined' && d3.csvFormatRow) {
       rowText = d3.csvFormatRow(columns.map(c => record[c]));
@@ -649,7 +644,7 @@ function createCopyButton(record, className = 'absolute top-2 right-2 text-xs te
         return value;
       }).join(',');
     }
-    
+
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(rowText);
     } else {
@@ -660,8 +655,8 @@ function createCopyButton(record, className = 'absolute top-2 right-2 text-xs te
       document.body.appendChild(ta);
       ta.focus();
       ta.select();
-      try { 
-        document.execCommand('copy'); 
+      try {
+        document.execCommand('copy');
       } catch (err) {
         console.error('Copy failed:', err);
       }
@@ -673,15 +668,15 @@ function createCopyButton(record, className = 'absolute top-2 right-2 text-xs te
 
 function updatePaginationInfo() {
   const totalPages = Math.ceil(currentResults.length / resultsPerPage);
-  
+
   if (resultCount) {
-    resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? "" : "s"}.`;
+    resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? '' : 's'}.`;
   }
-  
+
   if (pageInfo) {
     pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
   }
-  
+
   if (prevBtn) prevBtn.disabled = currentPage <= 1;
   if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
 }
@@ -783,7 +778,7 @@ function setupEventListeners() {
         alert('No data to export');
         return;
       }
-      
+
       let csvContent;
       if (typeof d3 !== 'undefined' && d3.csvFormat) {
         csvContent = d3.csvFormat(currentResults);
@@ -800,10 +795,10 @@ function setupEventListeners() {
         });
         csvContent = [header, ...rows].join('\n');
       }
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      
+
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
@@ -825,7 +820,7 @@ function setupEventListeners() {
         urlStatus.textContent = 'Please enter a valid URL';
         return;
       }
-      
+
       try {
         urlStatus.textContent = 'Loading CSV from URL...';
         const response = await fetch(url);
@@ -833,9 +828,9 @@ function setupEventListeners() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const csvText = await response.text();
-        
+
         fallbackProcessFile(csvText, url.split('/').pop() || 'remote.csv');
-        
+
         urlStatus.textContent = '';
         urlInput.value = '';
       } catch (error) {
@@ -849,12 +844,12 @@ function setupEventListeners() {
 function setupThemeToggle() {
   const themeToggle = document.getElementById('themeToggle');
   if (!themeToggle) return;
-  
+
   function updateToggle() {
     const isDark = document.documentElement.classList.contains('dark');
     themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
   }
-  
+
   themeToggle.addEventListener('click', () => {
     document.documentElement.classList.toggle('dark');
     try {
@@ -864,7 +859,7 @@ function setupThemeToggle() {
     }
     updateToggle();
   });
-  
+
   updateToggle();
 }
 
