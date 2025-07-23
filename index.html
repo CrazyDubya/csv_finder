@@ -334,7 +334,7 @@
       table.appendChild(tbody);
       resultsContainer.appendChild(table);
 
-      const totalPages = Math.ceil(currentResults.length / resultsPerPage);
+      const totalPages = calculateTotalPages(currentResults, resultsPerPage);
       resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? '' : 's'}.`;
       pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
 
