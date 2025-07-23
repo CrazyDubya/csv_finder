@@ -10,7 +10,11 @@ self.onmessage = function(e) {
   if (msg.type === 'parse') {
     try {
       data = d3.csvParse(msg.text);
-      columns = Object.keys(data[0] || {});
+      if (data.length === 0) {
+        self.postMessage({ type: 'error', message: 'CSV is empty. No data to parse.' });
+        return;
+      }
+      columns = Object.keys(data[0]);
       fuse = new Fuse(data, { keys: columns, threshold: 0.4, distance: 100 });
       self.postMessage({ type: 'parsed', data, columns, total: data.length });
     } catch (err) {
