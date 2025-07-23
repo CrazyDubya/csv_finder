@@ -333,9 +333,12 @@
             });
           }
         } else if (type === 'date') {
-          const minVal = document.getElementById(`filter-${field}-min`).value;
-          const maxVal = document.getElementById(`filter-${field}-max`).value;
-          filtered = filtered.filter(record => {
+          const minInput = document.getElementById(`filter-${field}-min`);
+          const maxInput = document.getElementById(`filter-${field}-max`);
+          if (minInput && maxInput) {
+            const minVal = minInput.value;
+            const maxVal = maxInput.value;
+            filtered = filtered.filter(record => {
             const v = record[field];
             if (!v) return false;
             const date = new Date(v);
