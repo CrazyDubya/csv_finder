@@ -130,9 +130,10 @@
     <div id="resultsArea" class="mb-10 hidden">
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
 
+
       <div id="sortContainer" class="mb-4 flex flex-wrap gap-2"></div>
       <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div
-      
+
       <!-- Pagination Controls -->
       <div id="pagination" class="mt-4 flex justify-between items-center">
         <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
@@ -177,6 +178,7 @@
     let fuse = null;
     let currentPage = 1;
 
+
     let resultsPerPage = 25;
     let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
     let csvWorker = null;
@@ -192,6 +194,7 @@
     const resultCount = document.getElementById('resultCount');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+
     const urlInput = document.getElementById('urlInput');
     const loadUrlBtn = document.getElementById('loadUrlBtn');
     const urlStatus = document.getElementById('urlStatus');
@@ -284,6 +287,7 @@
       const pad = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     }
+
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -482,6 +486,7 @@
         } else {
           buildFilters();
 
+
           // Build column visibility checkboxes
           buildColumnSelectors();
 
@@ -670,7 +675,9 @@
 
     // Build clickable sort buttons for each column
     function buildSortButtons() {
+
       sortContainer.replaceChildren();
+
       columns.forEach(field => {
         const btn = document.createElement('button');
         btn.dataset.column = field;
@@ -695,13 +702,21 @@
         const col = btn.dataset.column;
         if (col === sortColumn) {
           btn.classList.add('bg-blue-100');
-          btn.innerHTML = `${col} ${sortAscending ? '▲' : '▼'}`;
+
+          btn.textContent = col;
+          const sortIndicator = document.createElement('span');
+          sortIndicator.textContent = sortAscending ? '▲' : '▼';
+          sortIndicator.className = "ml-1"; // Optional: Add margin for spacing
+          btn.appendChild(sortIndicator);
+          btn.setAttribute('aria-label', `${col} sorted ${sortAscending ? 'ascending' : 'descending'}`);
+
         } else {
           btn.classList.remove('bg-blue-100');
           btn.textContent = col;
         }
       });
     }
+
 
     let lastSortColumn = null;
     let lastSortAscending = null;
@@ -834,7 +849,9 @@
 
     function displayResults() {
       resultsContainer.innerHTML = "";
+
       sortResults();
+
       const startIdx = (currentPage - 1) * resultsPerPage;
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
