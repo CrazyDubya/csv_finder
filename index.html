@@ -237,7 +237,7 @@
 
     // Build clickable sort buttons for each column
     function buildSortButtons() {
-      sortContainer.innerHTML = "";
+      sortContainer.replaceChildren();
       columns.forEach(field => {
         const btn = document.createElement('button');
         btn.dataset.column = field;
