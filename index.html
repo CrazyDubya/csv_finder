@@ -115,11 +115,14 @@
 
     function inferColumnType(values) {
       const nonEmpty = values.filter(v => v !== "");
-      if (nonEmpty.every(v => !isNaN(parseFloat(v)))) return 'number';
       if (nonEmpty.every(v => !isNaN(Date.parse(v)))) return 'date';
+      if (nonEmpty.every(v => isStrictNumber(v))) return 'number';
       return 'string';
     }
 
+    function isStrictNumber(value) {
+      return !isNaN(value) && !isNaN(parseFloat(value)) && !isNaN(Date.parse(value)) === false;
+    }
     function formatDate(d) {
       const pad = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
