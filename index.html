@@ -152,12 +152,13 @@
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
 
-      <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
+      <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2
 
       <div class="flex justify-end mb-2">
         <button id="toggleViewBtn" class="px-4 py-2 bg-blue-500 text-white rounded">
           Table View
         </button>
+
       </div>
       <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
@@ -341,6 +342,18 @@
       toggleViewBtn.textContent = viewMode === 'card' ? 'Table View' : 'Card View';
       resultsContainer.className = viewMode === 'card' ? cardContainerClass : tableContainerClass;
       renderResults();
+    });
+
+    const savedState = JSON.parse(localStorage.getItem('csvViewerState') || '{}');
+    let viewMode = savedState.viewMode || 'grid';
+    let savedFilters = savedState.filters || {};
+    currentPage = savedState.page || 1;
+    searchInput.value = savedState.search || '';
+
+    toggleViewBtn.addEventListener('click', () => {
+      viewMode = viewMode === 'grid' ? 'list' : 'grid';
+      displayResults();
+      saveState();
     });
 
     // Prevent default drag behaviors
@@ -554,6 +567,7 @@
           currentResults = csvData;
           currentPage = 1;
           renderResults();
+
         } catch (error) {
           console.error("CSV parse error:", error);
           fileStatus.textContent = 'Error parsing CSV: ' + error.message;
@@ -731,7 +745,14 @@
             opt.textContent = val;
             select.appendChild(opt);
           });
-          select.addEventListener('change', updateResults);
+          // Update results when the filter changes
+          select.addEventListener('change', () => {
+            updateResults();
+            saveState();
+          });
+          if (savedFilters[field]) {
+            select.value = savedFilters[field];
+          }
 
           // Create a label and wrapper for the select
           const wrapper = document.createElement('div');
@@ -1017,6 +1038,7 @@
     // Display results as cards for the current page
 
     function displayResults() {
+      applyViewMode();
       resultsContainer.innerHTML = "";
 
       sortResults();
@@ -1328,14 +1350,15 @@
       } else {
         displayResults();
       }
+
     }
 
     // Pagination controls
     prevBtn.addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
-        renderResults();
-
+        displayResults();
+        saveState();
       }
 
     });
@@ -1348,9 +1371,8 @@
         resultsPerPage = newSize;
         currentPage = 1;
         displayResults();
-      } else {
-        alert("Please select a page size between 1 and 1000.");
-        pageSizeSelect.value = resultsPerPage; // Reset to the current valid value
+
+        saveState();
 
       }
     });
@@ -1371,6 +1393,7 @@
     });
 
     // Handle search input (debounced)
+
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
 
     // Layout switcher event listener
@@ -1454,6 +1477,7 @@
       updateToggle();
     });
     updateToggle();
+
   </script>
 </body>
 </html>
