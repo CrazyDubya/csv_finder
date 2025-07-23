@@ -7,8 +7,12 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    if (localStorage.theme === 'dark') {
-      document.documentElement.classList.add('dark');
+    try {
+      if (localStorage.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {
+      console.warn('localStorage is not available. Defaulting to light theme.', e);
     }
   </script>
   <!-- d3-dsv for CSV parsing -->
