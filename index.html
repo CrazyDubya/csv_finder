@@ -110,6 +110,7 @@
              placeholder="Search records..." disabled />
     </div>
 
+
     <!-- Layout and Pagination Controls -->
     <div id="controlsArea" class="mb-6 hidden">
       <div class="bg-white rounded-lg shadow-lg p-4 flex flex-wrap items-center justify-between gap-4">
@@ -140,6 +141,7 @@
           Export Results
         </button>
       </div>
+
     </div>
 
     <!-- Results Area -->
@@ -214,6 +216,8 @@
     const resultCount = document.getElementById('resultCount');
     const filterContainer = document.getElementById('filterContainer');
     const filtersDiv = document.getElementById('filters');
+    const statsArea = document.getElementById('statsArea');
+    const statsContainer = document.getElementById('statsContainer');
 
     const urlInput = document.getElementById('urlInput');
     const loadUrlBtn = document.getElementById('loadUrlBtn');
@@ -507,10 +511,12 @@
           buildFilters();
 
 
+
           // Build column visibility checkboxes
           buildColumnSelectors();
 
           buildSortButtons();
+
 
           // Set initial results to all records and display first page
           currentResults = csvData;
@@ -694,6 +700,7 @@
       filterContainer.classList.remove('hidden');
     }
 
+
     // Build clickable sort buttons for each column
     function buildSortButtons() {
 
@@ -767,6 +774,7 @@
           return 0;
         }
       });
+
 
     }
 
