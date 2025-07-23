@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dynamic CSV Viewer</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Local CSS -->
+  <link rel="stylesheet" href="style.css">
   <script>
     try {
       if (localStorage.theme === 'dark') {
@@ -15,13 +15,10 @@
       console.warn('localStorage is not available. Defaulting to light theme.', e);
     }
   </script>
-  <!-- d3-dsv for CSV parsing -->
-  <script src="https://d3js.org/d3-dsv.v2.min.js"></script>
-  <!-- Fuse.js for fuzzy search -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.min.js"></script>
-
-  <!-- Lodash for debounce -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+  <!-- Local JavaScript dependencies -->
+  <script src="d3-csv.js"></script>
+  <script src="fuse.js"></script>
+  <script src="utils.js"></script>
   <style>
     /* Generic colorful header styling */
     .gradient-header {
@@ -41,7 +38,7 @@
   </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100">
-  <button id="themeToggle" class="fixed top-4 right-4 bg-blue-500 dark:bg-blue-700 text-white px-4 py-2 rounded">Dark Mode</button>
+  <button id="themeToggle" class="fixed top-4 right-4 btn-blue">Dark Mode</button>
   <div class="container mx-auto px-4 py-10">
     <!-- Header -->
     <div class="text-center mb-10">
@@ -218,13 +215,15 @@
     let approxHeight = ESTIMATED_CARD_HEIGHT;
 
     let selectedColumns = [];
-    let fuse = null;
     let currentPage = 1;
 
     let resultsPerPage = 25;
     let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
     let csvWorker = null;
-    let filterCache = {}
+    let filterCache = {};
+    let columnTypes = {};
+    let sortColumn = null;
+    let sortAscending = true;
 
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
@@ -253,6 +252,14 @@
     const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
     const exportBtn = document.getElementById('exportBtn');
     const controlsArea = document.getElementById('controlsArea');
+    
+    // Additional DOM elements
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageInfo = document.getElementById('pageInfo');
+    const pageSizeSelect = document.getElementById('pageSize');
+    const columnContainer = document.getElementById('columnContainer');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 
     function showSpinner() {
       spinner.classList.remove('hidden');
@@ -468,13 +475,6 @@
             fileStatus.textContent = 'Error parsing CSV: ' + error.message;
             hideSpinner();
           }
-
-          // Determine columns dynamically from the CSV header
-          columns = Object.keys(csvData[0] || {});
-          selectedColumns = [...columns];
-          // (Optional advanced logic: Suppress a column if more than 60% of its cells are empty)
-          // For now, we simply rely on per-record checking.
-
         }, 50);
       }
 
@@ -554,26 +554,100 @@
           });
         } else {
           buildFilters();
-
-
-
           // Build column visibility checkboxes
           buildColumnSelectors();
-
           buildSortButtons();
-
-
           // Set initial results to all records and display first page
           currentResults = csvData;
           currentPage = 1;
           renderResults();
-
-        } catch (error) {
-          console.error("CSV parse error:", error);
-          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
-
         }
-  
+        
+        hideSpinner();
+      }
+
+      // Build column selector checkboxes
+      function buildColumnSelectors() {
+        const columnCheckboxes = document.getElementById('columnCheckboxes');
+        if (!columnCheckboxes) return;
+        
+        columnCheckboxes.innerHTML = '';
+        selectedColumns = [...columns]; // Initialize with all columns
+        
+        columns.forEach(col => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'flex items-center';
+          
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `col-${col}`;
+          checkbox.checked = true;
+          checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+              if (!selectedColumns.includes(col)) {
+                selectedColumns.push(col);
+              }
+            } else {
+              selectedColumns = selectedColumns.filter(c => c !== col);
+            }
+            displayResults();
+          });
+          
+          const label = document.createElement('label');
+          label.htmlFor = checkbox.id;
+          label.textContent = col;
+          label.className = 'ml-2 text-sm';
+          
+          wrapper.appendChild(checkbox);
+          wrapper.appendChild(label);
+          columnCheckboxes.appendChild(wrapper);
+        });
+        
+        if (columns.length > 0) {
+          columnContainer.classList.remove('hidden');
+        }
+      }
+
+      // Simple function to highlight search terms
+      function highlightValue(text, term) {
+        if (!term || term.trim() === '') return text;
+        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+      }
+
+      // Generate result count text
+      function generateResultCountText(count) {
+        return `Showing ${count} result${count === 1 ? '' : 's'}`;
+      }
+
+      // Save application state to localStorage
+      function saveState() {
+        try {
+          const state = {
+            viewMode,
+            page: currentPage,
+            search: searchInput.value,
+            filters: getFilterValues(),
+            layout: currentLayout,
+            itemsPerPage: resultsPerPage
+          };
+          localStorage.setItem('csvViewerState', JSON.stringify(state));
+        } catch (e) {
+          console.warn('Failed to save state to localStorage', e);
+        }
+      }
+
+      // Get current filter values
+      function getFilterValues() {
+        const filters = {};
+        columns.forEach(field => {
+          const select = document.getElementById(`filter-${field}`);
+          if (select && select.value) {
+            filters[field] = select.value;
+          }
+        });
+        return filters;
+      }
 
       // Handle chunk processing (for large files)
       function handleCSVChunk(data) {
@@ -633,7 +707,7 @@
         wrapper.appendChild(select);
         filtersDiv.appendChild(wrapper);
       });
-    ]
+    }
 
     // Fallback filter building for non-worker mode
     function buildFilters() {
@@ -921,8 +995,6 @@
       
       // Apply each filter
       columns.forEach(field => {
-
-
         const type = columnTypes[field];
         if (type === 'number') {
           const minInput = document.getElementById(`filter-${field}-min`);
@@ -942,32 +1014,35 @@
             const minVal = minInput.value;
             const maxVal = maxInput.value;
             filtered = filtered.filter(record => {
-            const v = record[field];
-            if (!v) return false;
-            const date = new Date(v);
-            if (isNaN(date)) return false;
-            if (minVal && date < new Date(minVal)) return false;
-            if (maxVal && date > new Date(maxVal)) return false;
-            return true;
-          });
-
-        }
-      } else {
+              const v = record[field];
+              if (!v) return false;
+              const date = new Date(v);
+              if (isNaN(date)) return false;
+              if (minVal && date < new Date(minVal)) return false;
+              if (maxVal && date > new Date(maxVal)) return false;
+              return true;
+            });
+          }
+        } else {
           const select = document.getElementById(`filter-${field}`);
+          if (select && select.value && select.value !== '') {
             filtered = filtered.filter(record => {
               return String(record[field]).trim() === select.value;
-
             });
           }
         }
       });
 
-      worker.postMessage({ type: 'search', term, filters });
+      currentResults = filtered;
+      currentPage = 1;
+      sortResults();
+      displayResults();
+      saveState();
     }
 
     // Escape RegExp special characters for building a search regex
     function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // Escape HTML to prevent injection
@@ -997,32 +1072,9 @@
       }
       result += escapeHtml(str.slice(lastIndex));
       return result;
-
     }
 
-
-    // Escape RegExp special characters for building a search regex
-    function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
-    }
-
-    // Escape HTML to prevent injection
-    function escapeHtml(text) {
-      const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      };
-      return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
-    // Highlight the search term within a value if present (case-insensitive)
-    function highlightValue(value, term) {
-      const str = String(value);
-      if (!term) return escapeHtml(str);
-      const regex = new RegExp(escapeRegExp(term), 'gi');
+    // Display results based on current view mode and pagination
       let result = '';
       let lastIndex = 0;
       let match;
