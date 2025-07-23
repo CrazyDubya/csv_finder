@@ -249,7 +249,7 @@
     // Build checkboxes to toggle column visibility
     function buildColumnSelectors() {
       columnCheckboxes.innerHTML = "";
-      selectedColumns = [...columns];
+      // selectedColumns is already initialized in processFile()
       columns.forEach(field => {
         const label = document.createElement('label');
         label.className = "flex items-center space-x-1";
