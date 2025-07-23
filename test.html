@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Finder Test</title>
+    <script src="d3-csv.js"></script>
+    <script src="fuse.js"></script>
+    <script src="utils.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <h1>CSV Finder Test</h1>
+    
+    <div id="dragArea"></div>
+    <div id="fileInput"></div>
+    <div id="searchInput"></div>
+    <div id="fileStatus"></div>
+    <div id="resultsArea"></div>
+    <div id="resultsContainer"></div>
+    <div id="filterContainer"></div>
+    <div id="filters"></div>
+    <div id="urlInput"></div>
+    <div id="loadUrlBtn"></div>
+    <div id="urlStatus"></div>
+    <div id="spinner"></div>
+    <div id="layoutSelect"></div>
+    <div id="itemsPerPageSelect"></div>
+    <div id="exportBtn"></div>
+    <div id="controlsArea"></div>
+    <div id="prevBtn"></div>
+    <div id="nextBtn"></div>
+    <div id="pageInfo"></div>
+    <div id="pageSize"></div>
+    <div id="columnContainer"></div>
+    <div id="resetFiltersBtn"></div>
+    <div id="resultCount"></div>
+
+    <script>
+        // Test the core functionality
+        console.log('Testing CSV Finder functionality...');
+        
+        // Test CSV parsing
+        const testCSV = `Name,Age,City
+John,25,NYC
+Jane,30,LA`;
+        
+        try {
+            if (typeof fallbackProcessFile === 'function') {
+                console.log('✓ fallbackProcessFile function exists');
+                fallbackProcessFile(testCSV, 'test.csv');
+            } else {
+                console.log('✗ fallbackProcessFile function not found');
+            }
+        } catch (e) {
+            console.log('✗ Error testing CSV processing:', e.message);
+        }
+        
+        // Test if variables are properly defined
+        const expectedGlobals = ['csvData', 'columns', 'currentResults', 'currentPage', 'resultsPerPage'];
+        expectedGlobals.forEach(varName => {
+            if (typeof window[varName] !== 'undefined') {
+                console.log(`✓ ${varName} is defined`);
+            } else {
+                console.log(`✗ ${varName} is not defined`);
+            }
+        });
+        
+        // Test if functions are available
+        const expectedFunctions = ['displayResults', 'updateResults', 'buildFilters', 'setupFileHandlers'];
+        expectedFunctions.forEach(funcName => {
+            if (typeof window[funcName] === 'function') {
+                console.log(`✓ ${funcName} function exists`);
+            } else {
+                console.log(`✗ ${funcName} function not found`);
+            }
+        });
+        
+        setTimeout(() => {
+            console.log('Test completed. Check console for results.');
+        }, 1000);
+    </script>
+</body>
+</html>
