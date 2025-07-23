@@ -227,7 +227,8 @@
           select.id = `filter-${field}`;
           select.multiple = true;
           select.size = Math.min(5, uniqueVals.length + 1);
-          select.className = "border border-blue-300 rounded p-1 h-32";
+          select.className = "border border-blue-300 rounded p-1";
+          select.style.height = "var(--dropdown-height, 128px)"; // Default height is 128px; configurable via CSS variable
           // Add a default option for "All"
           const defaultOption = document.createElement('option');
           defaultOption.value = "";
