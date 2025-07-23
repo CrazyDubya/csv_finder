@@ -21,7 +21,10 @@ self.onmessage = function(e) {
       self.postMessage({ type: 'error', message: err.message });
     }
   } else if (msg.type === 'search') {
-    if (!fuse) return;
+    if (!fuse) {
+      self.postMessage({ type: 'error', message: 'Search operation failed: Fuse is not initialized.' });
+      return;
+    }
     let results = msg.term ? fuse.search(msg.term).map(r => r.item) : data;
     const filters = msg.filters || {};
     Object.keys(filters).forEach(field => {
