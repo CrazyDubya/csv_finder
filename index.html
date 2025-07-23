@@ -304,7 +304,7 @@
     // Display results as cards for the current page
     function displayResults() {
       resultsContainer.innerHTML = "";
-      sortResults();
+      // Ensure data is already sorted before calling this function
       const startIdx = (currentPage - 1) * resultsPerPage;
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
