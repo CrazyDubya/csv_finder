@@ -115,7 +115,9 @@
     <!-- Results Area -->
     <div id="resultsArea" class="mb-10 hidden">
       <h2 class="text-2xl font-bold mb-4 text-blue-800">Search Results</h2>
-      <div id="resultsContainer" class=""></div>
+      <div id="sortContainer" class="mb-4 flex flex-wrap gap-2"></div>
+      <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div
+      
       <!-- Pagination Controls -->
       <div id="pagination" class="mt-4 flex justify-between items-center">
         <button id="prevBtn" class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" disabled>
@@ -139,72 +141,75 @@
     let resultsPerPage = 25;
     let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
     let csvWorker = null;
-    let filterCache = {};
+    let filterCache = {}
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
     const fileInput = document.getElementById('fileInput');
     const searchInput = document.getElementById('searchInput');
     const fileStatus = document.getElementById('fileStatus');
     const resultsArea = document.getElementById('resultsArea');
-      const resultsContainer = document.getElementById('resultsContainer');
-      const resultCount = document.getElementById('resultCount');
-      const prevBtn = document.getElementById('prevBtn');
-      const nextBtn = document.getElementById('nextBtn');
-      const pageInfo = document.getElementById('pageInfo');
-      const filterContainer = document.getElementById('filterContainer');
-      const filtersDiv = document.getElementById('filters');
-      const spinner = document.getElementById('spinner');
-      const layoutSelect = document.getElementById('layoutSelect');
-      const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
-      const exportBtn = document.getElementById('exportBtn');
-      const controlsArea = document.getElementById('controlsArea');
 
-      function showSpinner() {
-        spinner.classList.remove('hidden');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultCount = document.getElementById('resultCount');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageInfo = document.getElementById('pageInfo');
+    const filterContainer = document.getElementById('filterContainer');
+    const filtersDiv = document.getElementById('filters');
+    const sortContainer = document.getElementById('sortContainer');
+
+    const spinner = document.getElementById('spinner');
+    const layoutSelect = document.getElementById('layoutSelect');
+    const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
+    const exportBtn = document.getElementById('exportBtn');
+    const controlsArea = document.getElementById('controlsArea');
+
+    function showSpinner() {
+      spinner.classList.remove('hidden');
+    }
+
+    function hideSpinner() {
+      spinner.classList.add('hidden');
+    }
+
+    // Initialize web worker
+    function initWorker() {
+      // Temporarily disable web worker to test fallback
+      csvWorker = null;
+      /*
+      if (typeof Worker !== 'undefined') {
+        csvWorker = new Worker('csv-worker.js');
+        csvWorker.onmessage = function(e) {
+          const { type, data, message, progress } = e.data;
+
+          switch (type) {
+            case 'progress':
+              fileStatus.textContent = `${message} (${progress}%)`;
+              break;
+            case 'csvParsed':
+              handleCSVParsed(data);
+              break;
+            case 'csvChunk':
+              handleCSVChunk(data);
+              break;
+            case 'filtersBuilt':
+              handleFiltersBuilt(data);
+              break;
+            case 'dataFiltered':
+              handleDataFiltered(data);
+              break;
+            case 'error':
+              fileStatus.textContent = message;
+              hideSpinner();
+              break;
+          }
+        };
       }
+      */
+    }
 
-      function hideSpinner() {
-        spinner.classList.add('hidden');
-      }
-
-      // Initialize web worker
-      function initWorker() {
-        // Temporarily disable web worker to test fallback
-        csvWorker = null;
-        /*
-        if (typeof Worker !== 'undefined') {
-          csvWorker = new Worker('csv-worker.js');
-          csvWorker.onmessage = function(e) {
-            const { type, data, message, progress } = e.data;
-            
-            switch (type) {
-              case 'progress':
-                fileStatus.textContent = `${message} (${progress}%)`;
-                break;
-              case 'csvParsed':
-                handleCSVParsed(data);
-                break;
-              case 'csvChunk':
-                handleCSVChunk(data);
-                break;
-              case 'filtersBuilt':
-                handleFiltersBuilt(data);
-                break;
-              case 'dataFiltered':
-                handleDataFiltered(data);
-                break;
-              case 'error':
-                fileStatus.textContent = message;
-                hideSpinner();
-                break;
-            }
-          };
-        }
-        */
-      }
-
-      // Initialize worker on page load
-      initWorker();
+    // Initialize worker on page load
+    initWorker();
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -394,14 +399,17 @@
           });
         } else {
           buildFilters();
+          buildSortButtons();
+          // Set initial results to all records and display first page
+          currentResults = csvData;
+          currentPage = 1;
+          displayResults();
+        } catch (error) {
+          console.error("CSV parse error:", error);
+          fileStatus.textContent = 'Error parsing CSV: ' + error.message;
+
         }
-        
-        // Set initial results and display
-        currentResults = csvData;
-        currentPage = 1;
-        displayResults();
-        hideSpinner();
-      }
+  
 
       // Handle chunk processing (for large files)
       function handleCSVChunk(data) {
@@ -475,6 +483,71 @@
       });
       buildFiltersFromCache();
       filterContainer.classList.remove('hidden');
+    }
+
+    // Build clickable sort buttons for each column
+    function buildSortButtons() {
+      sortContainer.replaceChildren();
+      columns.forEach(field => {
+        const btn = document.createElement('button');
+        btn.dataset.column = field;
+        btn.className = "px-2 py-1 border border-blue-300 rounded text-sm bg-white";
+        btn.addEventListener('click', () => {
+          if (sortColumn === field) {
+            sortAscending = !sortAscending;
+          } else {
+            sortColumn = field;
+            sortAscending = true;
+          }
+          updateSortUI();
+          displayResults();
+        });
+        sortContainer.appendChild(btn);
+      });
+      updateSortUI();
+    }
+
+    function updateSortUI() {
+      Array.from(sortContainer.children).forEach(btn => {
+        const col = btn.dataset.column;
+        if (col === sortColumn) {
+          btn.classList.add('bg-blue-100');
+          btn.innerHTML = `${col} ${sortAscending ? '▲' : '▼'}`;
+        } else {
+          btn.classList.remove('bg-blue-100');
+          btn.textContent = col;
+        }
+      });
+    }
+
+    let lastSortColumn = null;
+    let lastSortAscending = null;
+
+    function sortResults() {
+      if (!sortColumn) return;
+      // Skip sorting if the sort criteria haven't changed
+      if (sortColumn === lastSortColumn && sortAscending === lastSortAscending) {
+        return;
+      }
+      currentResults.sort((a, b) => {
+        const valA = a[sortColumn];
+        const valB = b[sortColumn];
+        
+        const isNumericA = !isNaN(Number(valA));
+        const isNumericB = !isNaN(Number(valB));
+        
+        if (isNumericA && isNumericB) {
+          // Numeric comparison
+          return sortAscending ? valA - valB : valB - valA;
+        } else {
+          // String comparison (case-insensitive)
+          const strA = String(valA || '').toLowerCase();
+          const strB = String(valB || '').toLowerCase();
+          if (strA < strB) return sortAscending ? -1 : 1;
+          if (strA > strB) return sortAscending ? 1 : -1;
+          return 0;
+        }
+      });
     }
 
     // Update results based on search input and filter selections
@@ -554,6 +627,7 @@
     // Display results in different layouts
     function displayResults() {
       resultsContainer.innerHTML = "";
+      sortResults();
       const startIdx = (currentPage - 1) * resultsPerPage;
       const endIdx = startIdx + resultsPerPage;
       const pageResults = currentResults.slice(startIdx, endIdx);
