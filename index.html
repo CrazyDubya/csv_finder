@@ -83,12 +83,17 @@
     <!-- Filter Controls -->
     <div id="filterContainer" class="mb-6 hidden">
 
+
       <h2 class="text-xl font-semibold text-blue-800 mb-1">Filters</h2>
       <p class="text-xs text-blue-600 mb-2">Hold Ctrl (Cmd on Mac) to select multiple options</p>
+
 
       <div id="filters" class="flex flex-wrap gap-4">
         <!-- Filter dropdowns will be created dynamically -->
       </div>
+      <button id="resetFiltersBtn" class="mt-4 px-4 py-2 bg-gray-500 text-white rounded">
+        Reset Filters
+      </button>
     </div>
 
     <!-- Column Selector -->
@@ -369,6 +374,7 @@
       if (file) processFile(file);
     });
 
+
     // Process CSV file using web worker for better performance
       function processFile(file) {
         // Reset previous data and show spinner
@@ -403,6 +409,7 @@
           fileStatus.textContent = 'Error reading file: ' + error.message;
           hideSpinner();
         };
+
         
         reader.readAsText(file);
       }
@@ -703,12 +710,19 @@
 
           const select = document.createElement('select');
           select.id = `filter-${field}`;
-          select.className = 'border border-blue-300 rounded p-1';
+
+          select.multiple = true;
+          select.size = Math.min(5, uniqueVals.length + 1);
+          select.className = "border border-blue-300 rounded p-1";
+          select.style.height = "var(--dropdown-height, 128px)"; // Default height is 128px; configurable via CSS variable
+          // Add a default option for "All"
+
           const defaultOption = document.createElement('option');
 
           defaultOption.value = "";
-          defaultOption.textContent = columnNames[field] + " (All)";
 
+          defaultOption.textContent = field + " (All)";
+          defaultOption.selected = true;
           select.appendChild(defaultOption);
           const uniqueVals = Array.from(new Set(nonEmptyVals)).sort((a, b) => a.localeCompare(b));
           uniqueVals.forEach(val => {
@@ -887,6 +901,7 @@
       // Apply each filter
       columns.forEach(field => {
 
+
         const type = columnTypes[field];
         if (type === 'number') {
           const minInput = document.getElementById(`filter-${field}-min`);
@@ -920,6 +935,7 @@
           const select = document.getElementById(`filter-${field}`);
             filtered = filtered.filter(record => {
               return String(record[field]).trim() === select.value;
+
             });
           }
         }
@@ -962,6 +978,43 @@
       return result;
 
     }
+
+
+    // Escape RegExp special characters for building a search regex
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+    }
+
+    // Escape HTML to prevent injection
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Highlight the search term within a value if present (case-insensitive)
+    function highlightValue(value, term) {
+      const str = String(value);
+      if (!term) return escapeHtml(str);
+      const regex = new RegExp(escapeRegExp(term), 'gi');
+      let result = '';
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str)) !== null) {
+        result += escapeHtml(str.slice(lastIndex, match.index));
+        result += `<mark>${escapeHtml(match[0])}</mark>`;
+        lastIndex = match.index + match[0].length;
+      }
+      result += escapeHtml(str.slice(lastIndex));
+      return result;
+    }
+
+    // Display results as cards for the current page
 
     function displayResults() {
       resultsContainer.innerHTML = "";
@@ -1008,27 +1061,49 @@
       pageResults.forEach(record => {
         const card = document.createElement('div');
 
-        card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200 hover:shadow-lg transition-shadow";
-
+        card.className = "relative bg-white shadow-md rounded-lg p-4 border border-blue-200";
         const list = document.createElement('ul');
         list.className = "space-y-1";
-
-        selectedColumns.forEach(col => {
-
+        // For each column, display it only if the value is non-empty
+        const term = searchInput.value.trim();
+        columns.forEach(col => {
           const value = record[col] || '';
           if (value.trim() === "") return;
           const item = document.createElement('li');
-
-
           const displayValue = highlightValue(String(value), term);
-          item.innerHTML = `<span class="font-semibold text-red-600">${col}:</span> ${displayValue}`;
-
 
           list.appendChild(item);
         });
         
         card.appendChild(list);
-        card.appendChild(createCopyButton(record));
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'absolute top-2 right-2 text-xs text-blue-600 hover:underline';
+        copyBtn.addEventListener('click', () => {
+          const rowText = d3.csvFormatRow(columns.map(c => record[c]));
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(rowText);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = rowText;
+            ta.style.position = 'fixed';
+            ta.style.left = OFFSCREEN_POSITION;
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try { 
+              document.execCommand('copy'); 
+            } catch (err) {
+              console.error('Copy operation failed:', err);
+              alert('Failed to copy text. Please try again.');
+            }
+            document.body.removeChild(ta);
+          }
+        });
+        card.appendChild(copyBtn);
+
         resultsContainer.appendChild(card);
       });
     }
@@ -1280,7 +1355,21 @@
       }
     });
 
-    
+
+    // Reset all filters and search input
+    resetFiltersBtn.addEventListener('click', () => {
+      columns.forEach(field => {
+        const select = document.getElementById(`filter-${field}`);
+        if (select) {
+          Array.from(select.options).forEach(opt => {
+            opt.selected = opt.value === '';
+          });
+        }
+      });
+      searchInput.value = '';
+      updateResults();
+    });
+
     // Handle search input (debounced)
     searchInput.addEventListener('input', _.debounce(updateResults, 300));
 
