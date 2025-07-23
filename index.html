@@ -235,6 +235,7 @@
             input.type = 'text';
             input.value = columnNames[field];
             input.className = 'border-b border-blue-400 text-sm w-24';
+            input.setAttribute('aria-label', 'Edit column name');
             label.replaceWith(input);
             edit.style.display = 'none';
             input.focus();
