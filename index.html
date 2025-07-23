@@ -85,7 +85,8 @@
     let currentResults = [];
     const worker = new Worker('worker.js');
     const BUFFER = 5; // number of items to render above/below the viewport
-    let approxHeight = 120; // estimated card height for virtualization
+    const ESTIMATED_CARD_HEIGHT = 120; // estimated card height for virtualization
+    let approxHeight = ESTIMATED_CARD_HEIGHT;
     // DOM Elements
     const dragArea = document.getElementById('dragArea');
     const fileInput = document.getElementById('fileInput');
