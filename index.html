@@ -335,7 +335,7 @@
       resultsContainer.appendChild(table);
 
       const totalPages = calculateTotalPages(currentResults, resultsPerPage);
-      resultCount.textContent = `Showing ${currentResults.length} result${currentResults.length === 1 ? '' : 's'}.`;
+      resultCount.textContent = generateResultCountText(currentResults.length);
       pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
 
       prevBtn.disabled = currentPage <= 1;
