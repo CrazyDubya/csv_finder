@@ -353,7 +353,7 @@
             const ta = document.createElement('textarea');
             ta.value = rowText;
             ta.style.position = 'fixed';
-            ta.style.left = '-9999px';
+            ta.style.left = OFFSCREEN_POSITION;
             document.body.appendChild(ta);
             ta.focus();
             ta.select();
