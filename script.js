@@ -102,7 +102,7 @@ function setupFileHandlers() {
     if (file && file.name.toLowerCase().endsWith('.csv')) {
       processFile(file);
     } else {
-      if (fileStatus) fileStatus.textContent = 'Please upload a valid CSV file.';
+      if (fileStatus) fileStatus.textContent = 'Please upload a valid CSV file with .csv extension.';
     }
   });
 
@@ -201,7 +201,7 @@ function fallbackProcessFile(csvText, filename) {
       }
 
       if (parsedData.length === 0) {
-        if (fileStatus) fileStatus.textContent = 'No records found in the CSV.';
+        if (fileStatus) fileStatus.textContent = 'No data records found in the CSV file. Please check the file format.';
         hideSpinner();
         return;
       }
@@ -226,7 +226,7 @@ function fallbackProcessFile(csvText, filename) {
         isComplete: true
       });
     } catch (error) {
-      if (fileStatus) fileStatus.textContent = 'Error parsing CSV: ' + error.message;
+      if (fileStatus) fileStatus.textContent = 'Error parsing CSV file: ' + error.message + '. Please ensure the file is properly formatted.';
       hideSpinner();
     }
   }, 50);
@@ -248,7 +248,7 @@ function handleCSVParsed(data) {
     fuse = null;
   }
 
-  if (fileStatus) fileStatus.textContent = `Loaded ${data.totalRows} rows successfully.`;
+  if (fileStatus) fileStatus.textContent = `Successfully loaded ${data.totalRows} records from CSV file.`;
   if (searchInput) searchInput.disabled = false;
   if (resultsArea) resultsArea.classList.remove('hidden');
   if (controlsArea) controlsArea.classList.remove('hidden');
@@ -775,7 +775,7 @@ function setupEventListeners() {
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
       if (currentResults.length === 0) {
-        alert('No data to export');
+        alert('No data available to export. Please load a CSV file first.');
         return;
       }
 
@@ -817,7 +817,7 @@ function setupEventListeners() {
     loadUrlBtn.addEventListener('click', async () => {
       const url = urlInput.value.trim();
       if (!url) {
-        urlStatus.textContent = 'Please enter a valid URL';
+        urlStatus.textContent = 'Please enter a valid CSV URL (e.g., https://example.com/data.csv)';
         return;
       }
 
@@ -834,7 +834,7 @@ function setupEventListeners() {
         urlStatus.textContent = '';
         urlInput.value = '';
       } catch (error) {
-        urlStatus.textContent = 'Error loading CSV: ' + error.message;
+        urlStatus.textContent = 'Error loading CSV from URL: ' + error.message + '. Please check the URL and try again.';
       }
     });
   }
