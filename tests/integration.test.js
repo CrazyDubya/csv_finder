@@ -29,22 +29,33 @@ describe('CSV Processing Integration', () => {
     const result = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
-      if (char === '"' && (i === 0 || line[i-1] === ',')) {
-        inQuotes = true;
-      } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
-        inQuotes = false;
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          current += char;
+        }
       } else {
-        current += char;
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === ',') {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
       }
     }
-    
+
     result.push(current.trim());
     return result;
   }

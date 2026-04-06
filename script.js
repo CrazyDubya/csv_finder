@@ -1,4 +1,4 @@
-// CSV Finder Application - Fixed JavaScript
+// CSV Finder Application
 let csvData = [];
 let columns = [];
 let columnNames = {};
@@ -8,11 +8,7 @@ let selectedColumns = [];
 let currentPage = 1;
 let resultsPerPage = 25;
 let currentLayout = 'cards'; // 'cards', 'table', 'list', 'compact'
-// let csvWorker = null; // Commented out - not used in current implementation
-// let filterCache = {}; // Commented out - not used in current implementation
 let columnTypes = {};
-// let sortColumn = null; // Commented out - not implemented yet
-// let sortAscending = true; // Commented out - not implemented yet
 
 // DOM Elements
 const dragArea = document.getElementById('dragArea');
@@ -21,7 +17,6 @@ const searchInput = document.getElementById('searchInput');
 const fileStatus = document.getElementById('fileStatus');
 const resultsArea = document.getElementById('resultsArea');
 const resultsContainer = document.getElementById('resultsContainer');
-// const toggleViewBtn = document.getElementById('toggleViewBtn'); // Commented out - not used
 const resultCount = document.getElementById('resultCount');
 const filterContainer = document.getElementById('filterContainer');
 const filtersDiv = document.getElementById('filters');
@@ -58,8 +53,6 @@ function hideSpinner() {
 
 // Initialize the application
 function initApp() {
-  // csvWorker = null; // Disable worker for now - use fallback
-
   // Load saved state
   try {
     const savedState = JSON.parse(localStorage.getItem('csvViewerState') || '{}');
@@ -119,7 +112,6 @@ function setupFileHandlers() {
 function processFile(file) {
   csvData = [];
   currentResults = [];
-  // filterCache = {}; // Reset filter cache if needed in future
 
   if (fileStatus) fileStatus.textContent = 'Reading file...';
   if (searchInput) searchInput.disabled = true;
@@ -164,7 +156,7 @@ function parseCSVSimple(csvText) {
   return data;
 }
 
-// Parse a single CSV line handling quotes
+// Parse a single CSV line handling quoted fields and escaped quotes (RFC 4180)
 function parseCsvLine(line) {
   const result = [];
   let current = '';
@@ -173,15 +165,28 @@ function parseCsvLine(line) {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
 
-    if (char === '"' && (i === 0 || line[i-1] === ',')) {
-      inQuotes = true;
-    } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
-      inQuotes = false;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          // Escaped quote inside quoted field
+          current += '"';
+          i++;
+        } else {
+          // Closing quote
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
     } else {
-      current += char;
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
     }
   }
 
@@ -208,15 +213,6 @@ function fallbackProcessFile(csvText, filename) {
 
       columns = Object.keys(parsedData[0] || {});
       initColumnNames();
-
-      // Initialize Fuse.js if available
-      if (typeof Fuse !== 'undefined') {
-        fuse = new Fuse(parsedData, {
-          keys: columns,
-          threshold: 0.4,
-          distance: 100
-        });
-      }
 
       handleCSVParsed({
         csvData: parsedData,
@@ -267,7 +263,8 @@ function handleCSVParsed(data) {
 function inferColumnType(values) {
   const nonEmpty = values.filter(v => v !== '');
   if (nonEmpty.length === 0) return 'string';
-  if (nonEmpty.every(v => !isNaN(Date.parse(v)) && isNaN(Number(v)))) return 'date';
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]+)?$/;
+  if (nonEmpty.every(v => isoDateRegex.test(v))) return 'date';
   if (nonEmpty.every(v => !isNaN(Number(v)) && isFinite(Number(v)))) return 'number';
   return 'string';
 }
@@ -385,13 +382,11 @@ function updateResults() {
     });
   }
 
-  // Apply filters
-  columns.forEach(field => {
+  // Apply filters — only string-type columns have filter selects
+  columns.filter(field => columnTypes[field] === 'string').forEach(field => {
     const select = document.getElementById(`filter-${field}`);
-    if (select && select.value && select.value !== '') {
-      filtered = filtered.filter(record => {
-        return String(record[field]).trim() === select.value;
-      });
+    if (select && select.value !== '') {
+      filtered = filtered.filter(record => String(record[field]).trim() === select.value);
     }
   });
 
@@ -473,7 +468,7 @@ function displayCardsLayout(pageResults) {
     const list = document.createElement('ul');
     list.className = 'space-y-1';
 
-    columns.forEach(col => {
+    selectedColumns.forEach(col => {
       const value = record[col] || '';
       if (value.trim() === '') return;
 
@@ -508,7 +503,7 @@ function displayTableLayout(pageResults) {
   thead.className = 'bg-blue-50';
   const headerRow = document.createElement('tr');
 
-  columns.forEach(col => {
+  selectedColumns.forEach(col => {
     const th = document.createElement('th');
     th.className = 'px-4 py-2 text-left text-sm font-medium text-blue-800 border-b';
     th.textContent = columnNames[col] || col;
@@ -531,7 +526,7 @@ function displayTableLayout(pageResults) {
     const row = document.createElement('tr');
     row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
 
-    columns.forEach(col => {
+    selectedColumns.forEach(col => {
       const td = document.createElement('td');
       td.className = 'px-4 py-2 text-sm border-b max-w-xs truncate';
       const value = record[col] || '';
@@ -567,7 +562,7 @@ function displayListLayout(pageResults) {
     details.className = 'flex-1';
 
     const mainInfo = [];
-    columns.slice(0, 3).forEach(col => {
+    selectedColumns.slice(0, 3).forEach(col => {
       const value = record[col] || '';
       if (value.trim() !== '') {
         const displayValue = highlightValue(String(value), term);
@@ -592,7 +587,7 @@ function displayCompactLayout(pageResults) {
     const card = document.createElement('div');
     card.className = 'relative bg-white p-2 rounded border border-gray-200 text-sm hover:shadow-md transition-shadow';
 
-    const primaryField = columns[0];
+    const primaryField = selectedColumns[0];
     const primaryValue = record[primaryField] || '';
 
     if (primaryValue.trim() !== '') {
@@ -604,7 +599,7 @@ function displayCompactLayout(pageResults) {
     }
 
     const secondaryInfo = [];
-    columns.slice(1, 3).forEach(col => {
+    selectedColumns.slice(1, 3).forEach(col => {
       const value = record[col] || '';
       if (value.trim() !== '') {
         secondaryInfo.push(String(value));
@@ -821,9 +816,13 @@ function setupEventListeners() {
         return;
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       try {
         urlStatus.textContent = 'Loading CSV from URL...';
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -834,7 +833,12 @@ function setupEventListeners() {
         urlStatus.textContent = '';
         urlInput.value = '';
       } catch (error) {
-        urlStatus.textContent = 'Error loading CSV from URL: ' + error.message + '. Please check the URL and try again.';
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          urlStatus.textContent = 'Request timed out. Please check the URL and try again.';
+        } else {
+          urlStatus.textContent = 'Error loading CSV from URL: ' + error.message + '. Please check the URL and try again.';
+        }
       }
     });
   }
@@ -863,15 +867,7 @@ function setupThemeToggle() {
   updateToggle();
 }
 
-// Initialize everything when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  initApp();
-  setupFileHandlers();
-  setupEventListeners();
-  setupThemeToggle();
-});
-
-// Also initialize if script loads after DOM
+// Initialize when DOM is ready — guard against double-registration
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     initApp();
