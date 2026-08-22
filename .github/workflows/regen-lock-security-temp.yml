@@ -1,22 +1,21 @@
 name: Regenerate security patch lockfile (temporary)
 
 on:
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   regenerate:
-    if: github.head_ref == 'dependabot/js-yaml-bump'
+    if: github.event.issue.pull_request && github.event.issue.number == 33 && github.event.comment.body == '/regen-security-lock'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: dependabot/js-yaml-bump
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -33,4 +32,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
           git commit -m "chore: regenerate package lock"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:dependabot/js-yaml-bump
