@@ -1,26 +1,29 @@
 # csv_finder
 
-A browser-based CSV viewer and search tool. Drop in a CSV, get fuzzy search, filtering, sorting, and charts — no server, no upload.
+A browser-based CSV viewer with fuzzy search. Open the page, load a CSV, search and filter it. Nothing is uploaded anywhere.
 
 ## What's here
 
-- `index.html` / `script.js` / `style.css` — the app. Fuzzy search via Fuse.js, charts via D3, light/dark theme persisted to `localStorage`.
-- `worker.js`, `csv-worker.js` — parsing and search moved off the main thread so large files stay responsive.
-- `utils.js` — shared parsing and formatting helpers.
-- `tests/` — Jest unit and integration tests plus a Playwright end-to-end suite.
+- `index.html`, `script.js`, `style.css` — the page. Theme choice is read from `localStorage` at load, defaulting to light if storage is unavailable.
+- `worker.js` — a Web Worker that parses CSV with `d3-dsv` and builds a Fuse.js index for search, off the main thread.
+- `csv-worker.js` — a second worker that parses in 1000-row chunks; its own comment gives the reason as preventing UI blocking.
+- `utils.js` — small helpers written to replace Lodash, starting with `debounce`.
+- `tests/` — Jest unit and integration tests plus a Playwright end-to-end spec.
+
+Both workers pull `d3-dsv` and `fuse.js` from CDNs at runtime, so the page needs network access even though your data never leaves the browser.
 
 ## Running it
 
 ```bash
-npm install
-npm start          # serves the directory on localhost
-npm test           # Jest
-npm run test:e2e   # Playwright
+npm install          # test tooling
+npm start            # serves the directory over python3 -m http.server
+npm test             # Jest
+npm run test:e2e     # Playwright
 npm run lint
 ```
 
-There is no build step — the page loads its scripts directly.
+There is no build step.
 
 ## Status
 
-Working and tested, with CI on every push. The most complete of the small standalone tools here.
+Working, with CI on every push.
