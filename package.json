@@ -14,7 +14,14 @@
     "build": "echo 'No build step required for static site'",
     "validate": "npm run lint && npm run test"
   },
-  "keywords": ["csv", "viewer", "search", "filter", "data", "javascript"],
+  "keywords": [
+    "csv",
+    "viewer",
+    "search",
+    "filter",
+    "data",
+    "javascript"
+  ],
   "author": "CrazyDubya",
   "license": "MIT",
   "devDependencies": {
@@ -24,15 +31,19 @@
     "jest-environment-jsdom": "^29.7.0"
   },
   "overrides": {
-    "js-yaml": "^4.3.1",
+    "js-yaml": "^4.3.2",
     "@istanbuljs/load-nyc-config": {
-      "js-yaml": "3.14.2"
+      "js-yaml": "3.15.2"
     }
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
-    "testMatch": ["**/tests/**/*.test.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
     "collectCoverageFrom": [
       "*.js",
       "!csv-worker.js",
