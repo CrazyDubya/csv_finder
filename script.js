@@ -871,15 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
 });
 
-// Also initialize if script loads after DOM
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-    setupFileHandlers();
-    setupEventListeners();
-    setupThemeToggle();
-  });
-} else {
+// Also initialize if the script loads after DOMContentLoaded has fired
+if (document.readyState !== 'loading') {
   initApp();
   setupFileHandlers();
   setupEventListeners();

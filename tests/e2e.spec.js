@@ -37,7 +37,7 @@ test.describe('CSV Finder E2E Tests', () => {
     await fileInput.setInputFiles(TEST_CSV_PATH);
     
     // Wait for file processing
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Check that search input is now enabled
     await expect(page.locator('#searchInput')).toBeEnabled();
@@ -62,7 +62,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should search and filter results correctly', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Test search functionality
     await page.locator('#searchInput').fill('John');
@@ -86,7 +86,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should apply column filters correctly', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Apply country filter
     const countryFilter = page.locator('#filter-Country');
@@ -112,7 +112,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should switch between different layout views', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Test table layout
     await page.locator('#layoutSelect').selectOption('table');
@@ -147,7 +147,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should toggle column visibility', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Check that Age column is visible initially
     await expect(page.locator('#resultsContainer')).toContainText('Age:');
@@ -186,7 +186,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should handle export functionality', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Set up download handling
     const downloadPromise = page.waitForEvent('download');
@@ -216,7 +216,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should handle pagination correctly', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Change items per page to 5
     await page.locator('#itemsPerPageSelect').selectOption('10');
@@ -235,10 +235,12 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should handle copy functionality', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
-    // Grant clipboard permissions
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    // Grant clipboard permissions (chromium-only; unsupported on firefox/webkit)
+    if (page.context().browser().browserType().name() === 'chromium') {
+      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    }
     
     // Click first copy button
     const firstCopyButton = page.locator('button:has-text("Copy")').first();
@@ -251,7 +253,7 @@ test.describe('CSV Finder E2E Tests', () => {
   test('should persist state across page reloads', async ({ page }) => {
     // Upload CSV file first
     await page.locator('#fileInput').setInputFiles(TEST_CSV_PATH);
-    await expect(page.locator('#fileStatus')).toContainText('Loaded 10 rows successfully.');
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 10 records from CSV file.');
     
     // Change layout and search
     await page.locator('#layoutSelect').selectOption('table');
@@ -261,10 +263,9 @@ test.describe('CSV Finder E2E Tests', () => {
     // Reload page
     await page.reload();
     
-    // The search and layout state is not persisted across page reloads in the current implementation
-    // This test documents the current behavior
-    await expect(page.locator('#searchInput')).toHaveValue('');
-    await expect(page.locator('#layoutSelect')).toHaveValue('cards');
+    // The app persists search and layout state to localStorage and restores it on reload
+    await expect(page.locator('#searchInput')).toHaveValue('John');
+    await expect(page.locator('#layoutSelect')).toHaveValue('table');
   });
 
   test('should handle error states gracefully', async ({ page }) => {
