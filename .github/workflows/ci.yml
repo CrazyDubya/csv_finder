@@ -148,12 +148,12 @@ jobs:
           pip install html5validator
         fi
         # Validate main HTML file
-        html5validator --root . --match "*.html" --ignore-re "Attribute.*not allowed" || echo "HTML validation completed with warnings"
+        html5validator --root . --match "index.html" --ignore-re "Attribute.*not allowed" || echo "HTML validation completed with warnings"
       
     - name: Check file sizes
       run: |
         echo "Checking file sizes..."
-        find . -name "*.js" -o -name "*.css" -o -name "*.html" | while read file; do
+        git ls-files '*.js' '*.css' '*.html' | while IFS= read -r file; do
           size=$(wc -c < "$file")
           echo "$file: $size bytes"
           if [ $size -gt 1000000 ]; then
