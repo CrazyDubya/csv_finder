@@ -14,6 +14,7 @@ module.exports = {
   },
   globals: {
     d3: 'readonly',
+    CsvParser: 'readonly',
     Fuse: 'readonly',
     _: 'readonly'
   },
@@ -28,7 +29,6 @@ module.exports = {
     'eol-last': 'error'
   },
   ignorePatterns: [
-    'd3-csv.js',
     'fuse.js',
     'csv-worker.js',
     'worker.js',

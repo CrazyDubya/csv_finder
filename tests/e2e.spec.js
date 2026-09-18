@@ -157,11 +157,36 @@ test.describe('CSV Finder E2E Tests', () => {
     await expect(ageCheckbox).toBeChecked();
     await ageCheckbox.uncheck();
     
-    // Wait for update
-    await page.waitForTimeout(300);
-    
-    // Verify Age column is hidden (this test may need adjustment based on implementation)
-    // The exact implementation depends on how column hiding works in the display functions
+    // Verify the hidden column stays absent in every layout.
+    for (const layout of ['cards', 'table', 'list', 'compact']) {
+      await page.locator('#layoutSelect').selectOption(layout);
+      await expect(page.locator('#resultsContainer')).not.toContainText('Age:');
+    }
+  });
+
+  test('should parse RFC 4180 fields through the upload path', async ({ page }) => {
+    const csv = 'Name,Note\r\nAlice,"first line\r\nsecond, line"\r\nBob,"He said ""hello"""';
+    await page.locator('#fileInput').setInputFiles({
+      name: 'quoted.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv)
+    });
+
+    await expect(page.locator('#fileStatus')).toContainText('Successfully loaded 2 records');
+    await expect(page.locator('#resultsContainer')).toContainText('first line');
+    await expect(page.locator('#resultsContainer')).toContainText('second, line');
+    await expect(page.locator('#resultsContainer')).toContainText('He said "hello"');
+  });
+
+  test('should report malformed CSV instead of silently dropping rows', async ({ page }) => {
+    await page.locator('#fileInput').setInputFiles({
+      name: 'malformed.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Name,City\nAlice')
+    });
+
+    await expect(page.locator('#fileStatus')).toContainText('Record 2 has 1 fields; expected 2');
+    await expect(page.locator('#searchInput')).toBeDisabled();
   });
 
   test('should handle theme toggle', async ({ page }) => {

@@ -1,77 +1,89 @@
-// Simple CSV parser to replace d3-dsv
-(function() {
+(function(root) {
   'use strict';
-  
-  function csvParse(text) {
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length === 0) return [];
-    
-    const headers = parseLine(lines[0]);
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line === '') continue;
-      
-      const values = parseLine(line);
-      if (values.length !== headers.length) continue;
-      
-      const record = {};
-      headers.forEach((header, index) => {
-        record[header] = values[index] || '';
-      });
-      data.push(record);
-    }
-    
-    return data;
-  }
-  
-  function parseLine(line) {
-    const result = [];
-    let current = '';
+
+  function parseRows(text) {
+    const rows = [];
+    let row = [];
+    let field = '';
     let inQuotes = false;
-    let i = 0;
-    
-    while (i < line.length) {
-      const char = line[i];
-      
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          // Escaped quote
-          current += '"';
-          i += 2;
+    let atFieldStart = true;
+    let recordHasContent = false;
+
+    function finishRecord() {
+      row.push(field);
+      if (recordHasContent || row.length > 1) rows.push(row);
+      row = [];
+      field = '';
+      atFieldStart = true;
+      recordHasContent = false;
+    }
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
         } else {
-          // Toggle quote state
-          inQuotes = !inQuotes;
-          i++;
+          field += char;
         }
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-        i++;
+        continue;
+      }
+
+      if (char === '"' && atFieldStart) {
+        inQuotes = true;
+        atFieldStart = false;
+        recordHasContent = true;
+      } else if (char === ',') {
+        row.push(field);
+        field = '';
+        atFieldStart = true;
+        recordHasContent = true;
+      } else if (char === '\r' || char === '\n') {
+        if (char === '\r' && text[i + 1] === '\n') i++;
+        finishRecord();
       } else {
-        current += char;
-        i++;
+        field += char;
+        atFieldStart = false;
+        recordHasContent = true;
       }
     }
-    
-    result.push(current.trim());
-    return result.map(value => {
-      // Remove surrounding quotes if present
-      if (value.startsWith('"') && value.endsWith('"')) {
-        return value.slice(1, -1);
+
+    if (inQuotes) throw new Error('Unclosed quoted field at end of CSV');
+    if (recordHasContent || row.length > 0 || field !== '') finishRecord();
+    return rows;
+  }
+
+  function csvParse(text) {
+    if (typeof text !== 'string' || text.length === 0) return [];
+    const rows = parseRows(text);
+    if (rows.length < 2) return [];
+
+    const headers = rows[0].slice();
+    if (headers[0]) headers[0] = headers[0].replace(/^\uFEFF/, '');
+
+    return rows.slice(1).map((values, index) => {
+      if (values.length !== headers.length) {
+        throw new Error(`Record ${index + 2} has ${values.length} fields; expected ${headers.length}`);
       }
-      return value;
+      const record = {};
+      headers.forEach((header, column) => {
+        record[header] = values[column];
+      });
+      return record;
     });
   }
-  
-  // Export for global use
-  if (typeof window !== 'undefined') {
-    window.d3 = window.d3 || {};
-    window.d3.csvParse = csvParse;
+
+  const api = { csvParse, parseRows };
+  if (root) {
+    root.CsvParser = api;
+    root.d3 = root.d3 || {};
+    root.d3.csvParse = csvParse;
   }
-  
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { csvParse };
-  }
-})();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : null);
