@@ -134,76 +134,17 @@ function processFile(file) {
   reader.readAsText(file);
 }
 
-// Simple CSV parser fallback
+// Parse through the single CSV implementation loaded by index.html.
 function parseCSVSimple(csvText) {
-  const lines = csvText.trim().split('\n');
-  if (lines.length < 2) return [];
-
-  const headers = parseCsvLine(lines[0]);
-  const data = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i]);
-    if (values.length === headers.length) {
-      const record = {};
-      headers.forEach((header, index) => {
-        record[header] = values[index] || '';
-      });
-      data.push(record);
-    }
-  }
-
-  return data;
-}
-
-// Parse a single CSV line handling quoted fields and escaped quotes (RFC 4180)
-function parseCsvLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-
-    if (inQuotes) {
-      if (char === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          // Escaped quote inside quoted field
-          current += '"';
-          i++;
-        } else {
-          // Closing quote
-          inQuotes = false;
-        }
-      } else {
-        current += char;
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-      } else if (char === ',') {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-  }
-
-  result.push(current.trim());
-  return result;
+  if (typeof CsvParser === 'undefined') throw new Error('CSV parser failed to load');
+  return CsvParser.csvParse(csvText);
 }
 
 // Fallback processing for browsers without web worker support
 function fallbackProcessFile(csvText, filename) {
   setTimeout(() => {
     try {
-      let parsedData;
-      if (typeof d3 !== 'undefined' && d3.csvParse) {
-        parsedData = d3.csvParse(csvText);
-      } else {
-        parsedData = parseCSVSimple(csvText);
-      }
+      const parsedData = parseCSVSimple(csvText);
 
       if (parsedData.length === 0) {
         if (fileStatus) fileStatus.textContent = 'No data records found in the CSV file. Please check the file format.';
@@ -261,12 +202,7 @@ function handleCSVParsed(data) {
 
 // Infer column type for filtering
 function inferColumnType(values) {
-  const nonEmpty = values.filter(v => v !== '');
-  if (nonEmpty.length === 0) return 'string';
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]+)?$/;
-  if (nonEmpty.every(v => isoDateRegex.test(v))) return 'date';
-  if (nonEmpty.every(v => !isNaN(Number(v)) && isFinite(Number(v)))) return 'number';
-  return 'string';
+  return _.inferColumnType(values);
 }
 
 // Build filter controls
@@ -344,6 +280,10 @@ function buildColumnSelectors() {
       } else {
         selectedColumns = selectedColumns.filter(c => c !== col);
       }
+      selectedColumns = columns.filter(column => {
+        const input = document.getElementById(`col-${column}`);
+        return input && input.checked;
+      });
       displayResults();
     });
 
@@ -816,24 +756,15 @@ function setupEventListeners() {
         return;
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
       try {
         urlStatus.textContent = 'Loading CSV from URL...';
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const csvText = await response.text();
+        const csvText = await _.fetchTextWithTimeout(url, 10000);
 
         fallbackProcessFile(csvText, url.split('/').pop() || 'remote.csv');
 
         urlStatus.textContent = '';
         urlInput.value = '';
       } catch (error) {
-        clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
           urlStatus.textContent = 'Request timed out. Please check the URL and try again.';
         } else {
