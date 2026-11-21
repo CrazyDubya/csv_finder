@@ -39,7 +39,9 @@ const resetFiltersBtn = document.getElementById('resetFiltersBtn');
 function initColumnNames() {
   columnNames = {};
   columns.forEach(col => {
-    columnNames[col] = col;
+    Object.defineProperty(columnNames, col, {
+      value: col, enumerable: true, writable: true, configurable: true
+    });
   });
 }
 
@@ -216,7 +218,9 @@ function buildFilters() {
     if (nonEmptyVals.length === 0) return;
 
     const type = inferColumnType(values);
-    columnTypes[field] = type;
+    Object.defineProperty(columnTypes, field, {
+      value: type, enumerable: true, writable: true, configurable: true
+    });
 
     const wrapper = document.createElement('div');
     wrapper.className = 'flex flex-col mb-4';
