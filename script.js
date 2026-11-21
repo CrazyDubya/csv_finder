@@ -195,9 +195,7 @@ function handleCSVParsed(data) {
   buildFilters();
   buildColumnSelectors();
 
-  currentResults = csvData;
-  currentPage = 1;
-  displayResults();
+  updateResults();
 
   hideSpinner();
 }
