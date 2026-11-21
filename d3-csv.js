@@ -73,7 +73,9 @@
       }
       const record = {};
       headers.forEach((header, column) => {
-        record[header] = values[column];
+        Object.defineProperty(record, header, {
+          value: values[column], enumerable: true, writable: true, configurable: true
+        });
       });
       return record;
     });
