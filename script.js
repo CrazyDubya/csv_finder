@@ -718,7 +718,10 @@ function setupEventListeners() {
       if (typeof d3 !== 'undefined' && d3.csvFormat) {
         csvContent = d3.csvFormat(currentResults);
       } else {
-        const header = columns.join(',');
+        const header = columns.map(column => {
+          const value = String(column);
+          return /[",\r\n]/.test(value) ? '"' + value.replace(/"/g, '""') + '"' : value;
+        }).join(',');
         const rows = currentResults.map(record => {
           return columns.map(col => {
             const value = String(record[col] || '');
